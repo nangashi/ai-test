@@ -19,7 +19,8 @@
       "Bash(env)",
       "Bash(docker:*)",
       "Bash(aqua i:*)",
-      "Bash(aws:*)"
+      "Bash(aws:*)",
+      "Bash(terraform:*)"
     ],
     "deny": []
   },

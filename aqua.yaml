@@ -14,3 +14,4 @@ packages:
 - name: astral-sh/uv@0.7.12
 - name: astral-sh/ruff@0.11.13
 - name: aws/aws-cli@2.22.34
+- name: hashicorp/terraform@1.12.2
