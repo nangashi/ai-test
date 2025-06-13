@@ -1,0 +1,10 @@
+{
+  "files.exclude": {
+    "**/__init__.py": true,
+    "**/__pycache__": true,
+    "**/.venv": true,
+    "**/.ruff_cache": true,
+    "**/.pytest_cache": true,
+    "**/.coverage": true
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "name": "Development Container",
+  "dockerComposeFile": "../compose.yaml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+  // リモート環境での設定
+  "remoteUser": "vscode",
+  // VS Code拡張機能キャッシュ用のマウント設定
+  "mounts": [
+    // ローカル環境との設定共有
+    "source=~/.aws,target=/home/vscode/.aws,type=bind,consistency=cached",
+    "source=~/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached",
+    // ローカル環境とのgit設定共有
+    "source=~/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached",
+    // VS Code/Cursor拡張機能キャッシュ
+    "source=vscode-extensions,target=/home/vscode/.vscode-server,type=volume",
+    "source=cursor-extensions,target=/home/vscode/.cursor-server,type=volume",
+    // Claude Code設定の永続化
+    "source=claude-config,target=/home/vscode/.claude,type=volume"
+  ],
+  "features": {
+    // Docker有効化
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    // Claude Code有効化
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+  },
+  // VS Code拡張機能の設定
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // Git関連
+        "eamodio.gitlens",
+        "mhutchie.git-graph",
+        // Docker/コンテナ関連
+        "ms-azuretools.vscode-docker",
+        // Markdown関連
+        "yzhang.markdown-all-in-one",
+        "davidanson.vscode-markdownlint",
+        // その他ユーティリティ
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml",
+        "editorconfig.editorconfig",
+        "oderwat.indent-rainbow"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll": "explicit"
+        },
+        "files.eol": "\n",
+        "files.insertFinalNewline": true,
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  }
+}

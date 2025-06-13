@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(npx:*)",
+      "WebFetch(domain:developer.hashicorp.com)",
+      "Bash(docker pull:*)",
+      "mcp__terraform__resolveProviderDocID",
+      "mcp__terraform__getProviderDocs",
+      "Bash(mkdir:*)",
+      "WebFetch(domain:docs.pola.rs)",
+      "Bash(true)",
+      "Bash(ls:*)",
+      "Bash(uv init:*)",
+      "Bash(uv add:*)",
+      "Bash(uv run:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "terraform"
+  ]
+}

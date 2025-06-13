@@ -1,0 +1,19 @@
+# トップレベル EditorConfig ファイル
+root = true
+
+# すべてのファイルに適用される設定
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Python ファイル
+[*.py]
+indent_size = 4
+
+# Markdown ファイル
+[*.md]
+trim_trailing_whitespace = false
