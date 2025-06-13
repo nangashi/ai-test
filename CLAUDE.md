@@ -18,10 +18,7 @@
 
 - VS Code/Cursor統合のDev Container設定
 - AquaパッケージマネージャーによるCLIツールのバージョン管理
-- ホストシステムからのSSHとGit設定の共有
 - コンテナ開発のためのDocker-in-Docker対応
-- `aqua.yaml`で設定されたツールのバージョン管理
-- パスに`$HOME/.local/share/aquaproj-aqua/bin`が含まれAqua管理のバイナリが利用可能
 
 ## Terraform開発
 
