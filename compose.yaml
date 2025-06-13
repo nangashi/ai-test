@@ -4,12 +4,7 @@ services:
       context: .
       dockerfile: .devcontainer/Dockerfile
     volumes:
-      - type: bind
-        source: ${PWD}
-        target: /workspace
-        consistency: cached
-      - type: bind
-        source: /var/run/docker.sock
-        target: /var/run/docker.sock
+      - ${PWD}:/workspace:cached
+      - /var/run/docker.sock:/var/run/docker.sock
     # コンテナを起動し続けるためのコマンド
     command: sleep infinity
