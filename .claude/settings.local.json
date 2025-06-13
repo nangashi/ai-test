@@ -17,7 +17,9 @@
       "Bash(grep:*)",
       "Bash(echo $HOME)",
       "Bash(env)",
-      "Bash(docker:*)"
+      "Bash(docker:*)",
+      "Bash(aqua i:*)",
+      "Bash(aws:*)"
     ],
     "deny": []
   },
