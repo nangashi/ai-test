@@ -20,7 +20,10 @@
       "Bash(docker:*)",
       "Bash(aqua i:*)",
       "Bash(aws:*)",
-      "Bash(terraform:*)"
+      "Bash(terraform:*)",
+      "Bash(tflint:*)",
+      "Bash(trivy:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   },
