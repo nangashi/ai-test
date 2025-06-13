@@ -4,6 +4,7 @@
 
 ## 基本方針
 
+- パッケージを導入するときはWebで最新版を探して導入する
 - 対話ではすぐに実装しない。実装方針を提示して合意してから進める
 
 ## プロジェクト構成
@@ -123,6 +124,8 @@ apps/<アプリ名>/
 ├── uv.lock                  # 依存関係ロックファイル
 ├── src/
 │   └── main.py              # メインエントリーポイント
+├── lambroll/                # Lambdaデプロイ設定
+│   └── function.json        # Lambda関数設定
 ├── tests/                   # ユニットテスト（クラス単位）
 │   ├── conftest.py          # pytest設定・フィクスチャ
 │   ├── test_*.py           # 各srcファイルに対応
@@ -161,6 +164,15 @@ uv run pytest tests-it/  # 結合テスト実行
 uv add <パッケージ名>      # 本番依存関係追加
 uv add --dev <パッケージ名> # 開発依存関係追加
 uv remove <パッケージ名>   # パッケージ削除
+
+# デプロイ（Lambdaアプリの場合）
+lambroll deploy           # Lambda関数をデプロイ
+lambroll deploy --dry-run # デプロイ内容の確認
+lambroll rollback         # 前のバージョンにロールバック
+lambroll delete           # Lambda関数を削除
+lambroll delete --dry-run # 削除内容の確認
+lambroll logs             # 最新のログを表示
+lambroll logs --follow    # ログをリアルタイム監視
 ```
 
 ### 技術スタック
@@ -201,3 +213,17 @@ uv remove <パッケージ名>   # パッケージ削除
 - **テスト名**: `test_<対象メソッド名>_<前提条件>_<期待結果>`形式で命名
 - **日本語コメント**: テストの意図・背景を明記
 - **フィクスチャ活用**: pytest.fixtureでテストデータ・モックオブジェクトを共通化
+
+### デプロイ（Lambda関数）
+
+#### lambrollを使用したデプロイ
+
+**設定ファイル**: `lambroll/function.json`でLambda関数の設定を管理
+
+#### デプロイワークフロー
+
+1. **コード品質チェック**: ruff format/check、mypy実行
+2. **テスト実行**: pytestでユニット・結合テスト
+3. **デプロイ準備**: lambroll deploy --dry-runで確認
+4. **デプロイ実行**: lambroll deployで本番反映
+5. **動作確認**: lambroll logsでログ確認

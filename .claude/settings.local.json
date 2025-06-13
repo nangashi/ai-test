@@ -23,7 +23,8 @@
       "Bash(terraform:*)",
       "Bash(tflint:*)",
       "Bash(trivy:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(lambroll:*)"
     ],
     "deny": []
   },
