@@ -5,6 +5,7 @@
     "**/.venv": true,
     "**/.ruff_cache": true,
     "**/.pytest_cache": true,
-    "**/.coverage": true
+    "**/.coverage": true,
+    "**/.terraform": true,
   }
 }
