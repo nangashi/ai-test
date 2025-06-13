@@ -9,6 +9,12 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu
 # 作業ディレクトリを設定
 WORKDIR /workspace
 
+# dockerグループを追加し、vscodeユーザーをそのグループに追加
+# ホストのdockerグループのGIDを取得して設定
+ARG DOCKER_GID=1001
+RUN groupadd -g ${DOCKER_GID} docker && \
+  usermod -aG docker vscode
+
 USER vscode
 
 # Aquaのインストール

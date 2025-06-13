@@ -8,8 +8,8 @@ services:
         source: ${PWD}
         target: /workspace
         consistency: cached
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
     # コンテナを起動し続けるためのコマンド
     command: sleep infinity
-    # 環境変数
-    environment:
-      - NODE_ENV=development

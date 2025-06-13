@@ -14,7 +14,10 @@
       "Bash(uv init:*)",
       "Bash(uv add:*)",
       "Bash(uv run:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(echo $HOME)",
+      "Bash(env)",
+      "Bash(docker:*)"
     ],
     "deny": []
   },
