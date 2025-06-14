@@ -24,7 +24,8 @@
       "Bash(tflint:*)",
       "Bash(trivy:*)",
       "WebFetch(domain:github.com)",
-      "Bash(lambroll:*)"
+      "Bash(lambroll:*)",
+      "WebFetch(domain:docs.aws.amazon.com)"
     ],
     "deny": []
   },

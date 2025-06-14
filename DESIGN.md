@@ -2,17 +2,17 @@
 
 ## 概要
 
-AWS Bedrockを活用したSlackベースのIssue起票システムです。ユーザーがSlackでメンションすることで、AIが適切なIssueを自動生成します。
+AWS Bedrockを活用したSlackベースのIssue起票システム。ユーザーがSlackから依頼することで、過去のIssue履歴を参照しつつAIが適切なIssueを自動生成する。
 
 ## 特徴
 
 - AWS上に構築されたシステム
 - Slackでメンションして依頼することでGitHub Issueの作成が可能
-- 依頼すると文案を提示し、指示するとIssueを作成する
-- 対話により文案の修正が可能（Bedrock Agentのセッション管理機能を活用）
-- クローズ済みIssueを日次で収集し、Issue作成時の参考にする
+- 依頼すると文案を提示し、対話により文案の修正が可能
+- 作成を指示するとIssueを起票する
+- クローズ済みIssueを収集し、Issue作成時の前提知識とする
 
-## 処理フロー
+## システム概要図
 
 ```mermaid
 graph TD
@@ -30,6 +30,7 @@ graph TD
     H[EventBridge Scheduler] -->|daily trigger| G["Lambda<br/>(Issue Extractor)"]
     F --> G
     G -->|put| J["S3<br/>(Issue History)"]
+    J -->|data source| E
     G -->|StartIngestionJob| E
 ```
 
@@ -50,6 +51,38 @@ graph TD
 - Lambda（Issue Creator）がGitHub APIを使用してIssueを作成
 - 作成完了とIssue URLをSlackに通知
 
+#### セッション管理
+
+Bedrock Agentとの対話継続性を確保するため、SlackのスレッドとBedrock AgentのSessionIDを紐付けて管理します。
+
+##### SessionID生成ロジック
+
+```python
+def generate_session_id(slack_event):
+    user_id = slack_event['user']
+    channel_id = slack_event['channel']
+    thread_ts = slack_event.get('thread_ts')
+    message_ts = slack_event['ts']
+    
+    if thread_ts:
+        # スレッド内での会話 - thread_tsをベースにセッションID作成
+        root_ts = thread_ts
+    else:
+        # チャンネルでの新しい会話開始 - 現在のメッセージがルートになる
+        root_ts = message_ts
+    
+    # セッションIDの形式: user_channel_root-timestamp
+    session_id = f"{user_id}_{channel_id}_{root_ts}"
+    return session_id
+```
+
+##### 管理方式の特徴
+
+- **外部ストレージ不要**: SlackイベントのメタデータからSessionIDを決定論的に生成
+- **一意性保証**: ユーザー + チャンネル + ルートタイムスタンプの組み合わせで完全にユニーク
+- **スレッド対応**: Slackのスレッド内メッセージは同一SessionIDで継続、新規メンションは新SessionID
+- **制限適合**: AWS Bedrock Agent SessionIDの制限（2-100文字、パターン `[0-9a-zA-Z._:-]+`）に適合
+
 #### シーケンス図
 
 ```mermaid
@@ -64,38 +97,38 @@ sequenceDiagram
     participant GH as GitHub
 
     Note over BA: SessionID生成
-    
-    U->>S: mention/request
-    S->>L1: event (Function URL)
-    L1->>BA: query (sessionId)
-    BA->>KB: search knowledge
-    KB->>BA: knowledge data
-    BA->>L1: generated issue content
-    L1->>S: issue preview
-    S->>U: issue preview
-    
+
+    U->>S: メンション/依頼
+    S->>L1: イベント送信 (Function URL)
+    L1->>BA: クエリ送信 (sessionId)
+    BA->>KB: ナレッジ検索
+    KB->>BA: 関連データ
+    BA->>L1: Issue内容生成
+    L1->>S: プレビュー送信
+    S->>U: プレビュー表示
+
     alt 修正依頼の場合
-        U->>S: modification request
-        S->>L1: modification event
-        L1->>BA: modify request (same sessionId)
+        U->>S: 修正依頼
+        S->>L1: 修正イベント
+        L1->>BA: 修正リクエスト (same sessionId)
         Note over BA: 会話履歴保持
-        BA->>L1: modified issue content
-        L1->>S: updated preview
-        S->>U: updated preview
+        BA->>L1: 修正されたIssue内容
+        L1->>S: 更新プレビュー送信
+        S->>U: 更新プレビュー表示
     end
-    
-    U->>S: final approval
-    S->>L1: approval event
-    L1->>BA: create issue request (same sessionId)
-    BA->>L2: action call (issue data)
-    L2->>SM: request
-    SM->>L2: PAT
-    L2->>GH: create issue
-    GH->>L2: issue created (with URL)
-    L2->>BA: issue created response
-    BA->>L1: response
-    L1->>S: success notification with URL
-    S->>U: created issue info with URL
+
+    U->>S: 最終承認
+    S->>L1: 承認イベント
+    L1->>BA: Issue作成リクエスト (same sessionId)
+    BA->>L2: アクション実行 (issue data)
+    L2->>SM: PAT取得要求
+    SM->>L2: PAT返却
+    L2->>GH: Issue作成
+    GH->>L2: Issue作成完了 (URL付き)
+    L2->>BA: 作成完了応答
+    BA->>L1: 応答
+    L1->>S: 成功通知 (URL付き)
+    S->>U: 作成完了情報 (URL付き)
 ```
 
 ### Issue履歴抽出
@@ -121,15 +154,15 @@ sequenceDiagram
     participant S3 as S3<br/>(Issue History)
     participant KB as Bedrock Knowledge Base
 
-    ES->>L2: daily trigger
-    L2->>SM: request
-    SM->>L2: PAT
-    L2->>GH: request
-    GH->>L2: issue history
-    L2->>S3: put
-    S3->>L2: response
-    L2->>KB: StartIngestionJob API
-    KB->>L2: sync complete
+    ES->>L2: 日次トリガー
+    L2->>SM: PAT取得要求
+    SM->>L2: PAT返却
+    L2->>GH: Issue履歴取得
+    GH->>L2: Issue履歴データ
+    L2->>S3: データ保存
+    S3->>L2: 保存完了
+    L2->>KB: データ同期開始
+    KB->>L2: 同期完了
 ```
 
 #### 保存データ形式
@@ -183,29 +216,4 @@ url: "https://github.com/org/my-project/issues/123"
 - 異常系（パスワード間違い）のテスト
 - エラーメッセージ表示のテスト
 ```
-
-## コンポーネント詳細
-
-### フロントエンド
-
-- **Slack**: ユーザーインターフェース、メンション受付
-
-### アプリケーションレイヤー
-
-- **Lambda (AI Interface)**: Function URL有効、Slackイベント処理、Bedrock連携、レスポンス生成
-- **Lambda (Issue Creator)**: GitHub Issue作成、PAT管理
-
-### AI レイヤー
-
-- **Bedrock Agent**: AIエージェント、自然言語処理、セッション管理による対話機能
-- **Bedrock Knowledge Base**: ナレッジベース、情報検索
-
-### ストレージレイヤー
-
-- **S3**: Issue履歴データ保存（Frontmatter Markdown形式）
-- **Secrets Manager**: GitHub Personal Access Token管理
-
-### スケジューラ
-
-- **EventBridge Scheduler**: 日次Issue履歴抽出トリガー
 
