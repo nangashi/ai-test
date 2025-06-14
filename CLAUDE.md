@@ -344,13 +344,13 @@ Python開発の標準ツール：
 
 #### 開発の流れ
 
-一覧で示した機能の開発や、テストなどの検証タスクなど、開発をどのように進めるかを理由付きで説明する
+一覧で示した機能の開発や、テストなどの検証タスクなど、開発をどのように進めるかを具体的に理由付きで説明する
 
 例：
 
-1. 認証機能の開発：認証情報は各機能で利用するためここで実施する
-2. ○○機能：他の機能への依存がないためここで実施する
-3. ××機能：依存のある○○機能の開発後に実施する
+1. 認証機能の開発：API Key・トークン管理は各機能で利用するためここで実施する
+2. データ収集機能：外部APIとの連携のみで他機能への依存がないためここで実施する
+3. データ変換機能：データ収集機能で取得したデータを変換するため、データ収集機能の開発後に実施する
 4. 開発ゴール検証：全機能の開発後に実施する
 
 #### タスク
@@ -389,6 +389,7 @@ Python開発の標準ツール：
 - **Claude Codeから実行可能**: CLIコマンド・API呼び出しのみ記載（Claude CodeはWebコンソールにアクセスできないため）
 - **具体的コマンド**: `terraform apply`、`uv run pytest`、`curl [URL]`等の実際に実行するコマンドを明記
 - **確認ポイント**: コマンド実行結果のどの部分を確認するかを明示（成功ステータス、設定値、レスポンス内容等）
+- **人による検証**: Claude Codeから実行不可能な検証（外部サービス連携、UI確認等）は人に検証を依頼することを明記
 
 #### 補足情報の定義
 
@@ -409,78 +410,50 @@ Python開発の標準ツール：
 ```markdown
 # 作業指示
 
-## [機能名]システムの実装
+## データ処理システムの実装
 
 ## 開発ゴール
-DESIGN.mdで定義された[システム/機能名]全体を実装し、設計書通りの完全なシステムを構築する
+DESIGN.mdで定義されたデータ処理システム全体を実装し、設計書通りの完全なシステムを構築する
 
 ### 機能一覧
-- **Slack連携アプリケーション (ai_interface)**: Slack Events API受信とBedrock Agent処理
-- **Issue作成アプリケーション (issue_creator)**: GitHub Issue作成機能
-- **Issue履歴抽出アプリケーション (issue_extractor)**: Issue履歴収集とKnowledge Base更新
+- **データ収集アプリケーション (data_collector)**: 外部APIからのデータ取得
+- **データ変換アプリケーション (data_transformer)**: データ形式変換・クレンジング
+- **レポート生成アプリケーション (report_generator)**: 集計結果の出力
 
 ## 開発の流れ
-1. **認証・権限基盤の構築**: GitHub PAT管理、IAM権限設定など各アプリケーションで利用する基盤のため最初に実施
-2. **Issue作成アプリケーション (issue_creator)**: 他アプリケーションへの依存が少なく単独で動作確認できるためここで実施
-3. **Issue履歴抽出アプリケーション (issue_extractor)**: Issue作成アプリケーションに依存しないため並行実施可能
-4. **Slack連携アプリケーション (ai_interface)**: Issue作成アプリケーションとの連携が必要なため後に実施
-5. **統合テスト**: 全アプリケーションの開発完了後に全体フローを検証
+1. **認証・権限基盤の構築**: API Key管理など各アプリケーションで利用する基盤のため最初に実施
+2. **データ収集アプリケーション**: 外部APIとの連携のみで他アプリケーションへの依存がないためここで実施
+3. **データ変換アプリケーション**: データ収集アプリケーションで取得したデータを変換するため、データ収集の完了後に実施
+4. **統合テスト**: 全アプリケーション完了後に全体フローを検証
 
 ## タスク
 
-### 1. 認証・権限基盤の構築
-- [ ] **GitHub PAT格納場所の作成と手動格納**: Secrets Manager作成とダミー値から実際のトークンへの置換
-  - 完了条件: GitHub PATが実際の値で格納されている
-  - 検証方法: Terraformでシークレット作成後、作成されたシークレットのARNまたは名前を使用してAWS CLIでシークレットの存在と値の設定状況を確認
-- [ ] **IAMロール・ポリシーの作成**: Lambda実行に必要な権限設定
+### 1. 基盤構築
+- [ ] **API Key格納とIAM設定**: 認証情報管理と権限設定
   - 完了条件: 必要な権限が設定されている
-  - 検証方法: Terraformで作成されたIAMロール名を使用してAWS CLIでロールの存在とアタッチされたポリシーの内容を確認（Secrets Manager読み取り、Bedrock Agent実行権限等を含む）
+  - 検証方法: AWS CLIでシークレット値が"dummy"以外の値で設定されていること、IAMロールに`secretsmanager:GetSecretValue`権限を含むポリシーがアタッチされていることを確認
 
-### 2. Issue作成アプリケーション (issue_creator)
-- [ ] **issue_creatorのローカル実装**: GitHub Issue作成機能の実装・テスト
+### 2. データ収集アプリケーション
+- [ ] **ローカル実装**: 外部API連携機能の実装・テスト
   - 完了条件: ユニットテストが全て成功する
-  - 検証方法: `uv run pytest --cov=src` でテスト実行し、全てPASSEDとなる
-- [ ] **issue_creatorの実行基盤構築とデプロイ**: IAM・ログ等を含む実行基盤構築とデプロイ
+  - 検証方法: `uv run pytest --cov=src` でテスト実行し、出力に"FAILED"が含まれず、全テストが"PASSED"と表示されることを確認
+- [ ] **デプロイと動作確認**: AWS環境での動作確認
   - 完了条件: AWS環境で正常に動作する
-  - 検証方法: lambrollでデプロイ完了後、AWS CLIでLambda関数の存在とIAMロール設定、環境変数設定を確認し、テストイベントでの動作確認を実施
+  - 検証方法: lambrollでデプロイ後、AWS CLIでLambda関数のStateが"Active"であり、ExecutionRoleが作成したIAMロールのARNと一致することを確認
 
-### 3. Issue履歴抽出アプリケーション (issue_extractor)
-- [ ] **issue_extractorのローカル実装**: GitHub Issue履歴収集とS3保存の実装・テスト
-  - 完了条件: ユニットテストが全て成功する
-  - 検証方法: `uv run pytest --cov=src` でテスト実行し、全てPASSEDとなる
-- [ ] **S3バケットとEventBridge Schedulerの構築**: データ保存基盤と定期実行設定
-  - 完了条件: 指定時刻にLambda関数が自動実行される
-  - 検証方法: TerraformでS3バケットとEventBridge Schedulerを作成後、AWS CLIでS3バケットの暗号化設定とスケジュールの実行設定（対象Lambda関数、実行時刻、状態）を確認
-- [ ] **issue_extractorの実行基盤構築とデプロイ**: IAM・ログ等を含む実行基盤構築とデプロイ
-  - 完了条件: AWS環境で正常に動作する
-  - 検証方法: lambrollでデプロイ完了後、AWS CLIでLambda関数の存在と権限設定を確認し、EventBridge Schedulerからの手動実行でS3へのファイル保存動作を検証
-
-### 4. Slack連携アプリケーション (ai_interface)
-- [ ] **ai_interfaceのローカル実装**: Slack Events API処理とSessionID生成の実装・テスト
-  - 完了条件: ユニットテストが全て成功する
-  - 検証方法: `uv run pytest --cov=src` でテスト実行し、全てPASSEDとなる
-- [ ] **ai_interfaceの実行基盤構築とデプロイ**: IAM・ログ等を含む実行基盤構築とデプロイ
-  - 完了条件: AWS環境で正常に動作する
-  - 検証方法: lambrollでデプロイ完了後、TerraformまたはAWS CLIでFunction URLを取得し、curlでHTTPリクエスト送信して正常なレスポンス（HTTP 200）を確認
-- [ ] **Bedrock Knowledge Baseの構築**: S3データソース連携設定
-  - 完了条件: Knowledge BaseがS3バケットをデータソースとして設定されている
-  - 検証方法: TerraformでKnowledge Base作成後、AWS CLIでKnowledge BaseのIDを使用してデータソース設定（S3バケット連携、ベクトルエンジン設定）と状態を確認
-- [ ] **Bedrock Agentの構築**: Knowledge Base連携とLambdaアクション設定
-  - 完了条件: AgentがKnowledge BaseとLambda(Issue Creator)を呼び出せる
-  - 検証方法: TerraformでBedrock Agent作成後、AWS CLIでAgentのIDを使用してKnowledge Base関連付け、アクショングループ設定（Lambda関数の呼び出し権限）、Agent状態を確認
-
-### 5. 統合テスト
-- [ ] **全体フロー統合テスト**: Slack→AI→GitHub Issue作成の全体フロー確認
+### 3. 統合テスト
+- [ ] **全体フロー確認**: データ収集→変換→出力の全体フロー確認
   - 完了条件: 設計書通りの全体フローが動作する
-  - 検証方法: Slack Events APIのテストペイロードをai_interfaceのFunction URLに送信し、Bedrock Agent経由でIssue作成が実行されることをCloudWatchログとGitHub APIで確認
+  - 検証方法: テストデータでの全工程実行し、DESIGN.mdで定義されたJSON形式のファイルがS3バケットに保存されることを確認
+- [ ] **外部API連携確認**: 実際の外部サービスとの連携動作確認
+  - 完了条件: 外部APIから正常にデータが取得できる
+  - 検証方法: 人による検証を依頼（外部サービスの管理画面でHTTPステータス200のAPI呼び出し履歴が記録され、レスポンスボディにデータが含まれていることを確認）
 
 ### 参考情報
-- 設計書: DESIGN.md の該当セクション（システム概要図、Issue作成、Issue履歴抽出）
-- 実装ガイド: CLAUDE.md のTerraform開発・Python開発・AWS環境セクション
-- 特記事項: AWS Well-Architectedセキュリティ原則の遵守、Bedrock Agent SessionID制限
+- 設計書: DESIGN.md の該当セクション
+- 実装ガイド: CLAUDE.md のTerraform開発・Python開発セクション
 
 ### 全体完了条件
-- DESIGN.mdで定義された全機能（Issue作成・Issue履歴抽出）が設計書通りに動作すること
-- Slack→AI→GitHub Issue作成の全フローが成功すること
-- 全てのコンポーネントの単体・結合テストが成功すること
+- DESIGN.mdで定義された全機能が設計書通りに動作すること
+- 全てのテストが成功すること
 ```
