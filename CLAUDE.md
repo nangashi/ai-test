@@ -392,7 +392,43 @@ Python開発の標準ツール：
 - **Claude Codeから実行可能**: CLIコマンド・API呼び出しのみ記載（Claude CodeはWebコンソールにアクセスできないため）
 - **具体的コマンド**: `terraform apply`、`uv run pytest`、`curl [URL]`等の実際に実行するコマンドを明記
 - **確認ポイント**: コマンド実行結果のどの部分を確認するかを明示（成功ステータス、設定値、レスポンス内容等）
-- **人による検証**: Claude Codeから実行不可能な検証（外部サービス連携、UI確認等）は人に検証を依頼することを明記
+- **人による作業依頼**: Claude Codeでは実行不可能な作業（外部トークン生成、手動設定、UI確認等）は人に作業・検証を依頼し、完了報告後にClaude Codeが可能な範囲で結果を検証することを明記
+
+#### 人による作業依頼のワークフロー
+
+**人による作業が必要な場合の標準的な流れ**：
+
+1. **Claude Codeによる依頼**: 明確な作業内容・検証手順をメッセージで提示
+2. **人による作業・検証実行**: 外部サービスでの設定、トークン生成、動作確認等
+3. **人による完了報告**: 作業・検証完了をClaude Codeに報告
+4. **Claude Codeによる補完確認**: 可能な範囲でAWS CLIやAPIで結果を確認
+
+**パターン別の例**：
+
+**作業＋Claude Code検証パターン**：
+```
+以下の手動作業をお願いします：
+
+1. GitHubでPersonal Access Tokenを生成
+   - Settings > Developer settings > Personal access tokens
+   - スコープ: repo, issues
+2. 生成されたトークンを以下のコマンドで設定
+   - aws secretsmanager update-secret --secret-id dev-github-pat --secret-string "ghp_xxxxxxxxxxxx"
+3. 完了したら「GitHub PAT設定完了」とお知らせください
+
+完了報告後、Claude CodeがAWS CLIでトークン設定を確認します。
+```
+
+**作業＋人による検証パターン**：
+```
+以下の手動作業・検証をお願いします：
+
+1. SlackワークスペースでBotにメンション送信
+2. GitHubリポジトリに新しいIssueが作成されることを確認
+3. 動作確認完了したら「Slack連携動作確認完了」とお知らせください
+
+Claude Codeでは外部サービス間の連携確認ができないため、人による検証をお願いします。
+```
 
 #### 補足情報の定義
 
@@ -432,9 +468,15 @@ DESIGN.mdで定義されたデータ処理システム全体を実装し、設�
 ## タスク
 
 ### 1. 基盤構築
-- [ ] **API Key格納とIAM設定**: 認証情報管理と権限設定
+- [ ] **Secrets Manager作成**: API Key格納場所の作成とダミー値設定
+  - 完了条件: Secrets Managerにダミー値が格納されている
+  - 検証方法: AWS CLIでシークレット値が"dummy"であることを確認
+- [ ] **API Key手動設定**: 外部サービスから取得したAPI Keyの格納
+  - 完了条件: API Keyが実際の値で格納されている
+  - 検証方法: 人による作業を依頼（外部サービスでAPI Key生成し、`aws secretsmanager update-secret`コマンドで更新）、完了報告後にAWS CLIでシークレット値が"dummy"以外であることを確認
+- [ ] **IAMロール・ポリシー作成**: Lambda実行に必要な権限設定
   - 完了条件: 必要な権限が設定されている
-  - 検証方法: AWS CLIでシークレット値が"dummy"以外の値で設定されていること、IAMロールに`secretsmanager:GetSecretValue`権限を含むポリシーがアタッチされていることを確認
+  - 検証方法: AWS CLIでIAMロールに`secretsmanager:GetSecretValue`権限を含むポリシーがアタッチされていることを確認
 
 ### 2. データ収集アプリケーション
 - [ ] **ローカル実装**: 外部API連携機能の実装・テスト
