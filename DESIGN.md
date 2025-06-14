@@ -19,25 +19,25 @@ graph TB
         A((User))
         B[Slack]
     end
-    
+
     subgraph "アプリケーション層"
         C["Lambda<br/>(AI Interface)"]
         I["Lambda<br/>(Issue Creator)"]
         L3["Lambda<br/>(Issue Extractor)"]
         H[EventBridge Scheduler]
     end
-    
+
     subgraph "AI・ナレッジ層"
         D{Bedrock Agent}
         E[("Bedrock Knowledge Base")]
     end
-    
+
     subgraph "外部サービス・ストレージ"
         F[GitHub]
         J["S3<br/>(Issue History)"]
         SM[Secrets Manager]
     end
-    
+
     A -->|メンション| B
     B -->|Events API| C
     C -->|クエリ| D
@@ -48,13 +48,225 @@ graph TB
     D -->|応答| C
     C -->|プレビュー/通知| B
     B -->|表示| A
-    
+
     H -->|日次実行| L3
     L3 -->|PAT取得| SM
     L3 -->|履歴取得| F
     L3 -->|保存| J
     J -->|データソース| E
     L3 -->|同期開始| E
+```
+
+## アプリケーション一覧
+
+実装するアプリケーションの概要と仕様を定義します。
+
+### Issue発行 (issue_creator)
+
+#### 概要
+
+GitHub Issue作成を実行するLambda関数
+
+#### デプロイ先
+
+AWS Lambda（Bedrock Agentからのアクション呼び出し用）
+
+#### 入力
+
+Bedrock Agentからのアクション呼び出し時のJSONペイロード：
+
+```json
+{
+  "messageVersion": "1.0",
+  "agent": {
+    "name": "issue-agent",
+    "id": "ABCDEFGHIJ", 
+    "alias": "TSTALIASID",
+    "version": "DRAFT"
+  },
+  "inputText": "バグ修正のIssueを作成してください",
+  "sessionId": "U123456789_C987654321_1234567890.123456",
+  "actionGroup": "issue-creator",
+  "apiPath": "/create-issue",
+  "httpMethod": "POST",
+  "parameters": [
+    {
+      "name": "repository",
+      "type": "string", 
+      "value": "my-org/my-repo"
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "value": "ログイン機能のバグ修正"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "value": "## 問題内容\nログイン時にエラーが発生する\n\n## 解決方法\nバリデーション処理の修正が必要"
+    },
+    {
+      "name": "labels",
+      "type": "array",
+      "value": "[\"bug\", \"priority-high\"]"
+    }
+  ]
+}
+```
+
+#### 処理
+
+1. Secrets ManagerからGitHub PATを取得
+2. GitHub API経由でIssue作成
+3. 作成結果をレスポンス
+
+#### 出力
+
+Bedrock Agentへのレスポンス：
+
+```json
+{
+  "messageVersion": "1.0",
+  "response": {
+    "actionGroup": "issue-creator",
+    "apiPath": "/create-issue",
+    "httpMethod": "POST",
+    "httpStatusCode": 200,
+    "responseBody": {
+      "application/json": {
+        "body": "{\"issue_url\":\"https://github.com/my-org/my-repo/issues/123\",\"issue_number\":123,\"status\":\"created\"}"
+      }
+    }
+  }
+}
+
+### AI Interface (ai_interface)
+
+#### 概要
+
+Slack Events APIを受信してBedrock Agentとやり取りするLambda関数
+
+#### デプロイ先
+
+AWS Lambda（Function URL有効化でSlack連携）
+
+#### 入力
+
+Slack Events APIからのapp_mentionイベント：
+
+```json
+{
+  "token": "ZZZZZZWSxiZZZ2yIvs3peJ",
+  "team_id": "T123ABC456",
+  "api_app_id": "A123ABC456",
+  "event": {
+    "type": "app_mention",
+    "user": "U123ABC456",
+    "text": "<@U0LAN0Z89> ログイン機能のバグ修正Issueを作成してください",
+    "ts": "1515449522.000016",
+    "channel": "C123ABC456",
+    "event_ts": "1515449522000016",
+    "thread_ts": "1515449522.000015"
+  },
+  "type": "event_callback",
+  "event_id": "Ev123ABC456",
+  "event_time": 1515449522000016,
+  "authed_users": [
+    "U0LAN0Z89"
+  ]
+}
+```
+
+#### 処理
+
+1. SlackイベントからSessionID生成
+2. Bedrock Agentにクエリ送信
+3. 応答をSlackに転送
+
+#### 出力
+
+Slackへの応答（HTTP 200 OK）：
+
+```json
+{
+  "statusCode": 200,
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"challenge\":\"3eZbrw1aBm2rZgRNFdxV2595E9CY3gmdALWMmHkvFXO7tYXAYM8P\"}"
+}
+```
+
+Slack APIへのメッセージ投稿：
+
+```json
+{
+  "channel": "C123ABC456",
+  "text": "Issue内容を確認してください：\n\n**タイトル**: ログイン機能のバグ修正\n**内容**: ログイン時にエラーが発生する問題の修正\n**ラベル**: bug, priority-high\n\n作成してよろしいですか？",
+  "thread_ts": "1515449522.000016"
+}
+```
+
+### Issue履歴抽出 (issue_extractor)
+
+#### 概要
+
+GitHub Issue履歴を定期収集してS3保存・Knowledge Base更新するLambda関数
+
+#### デプロイ先
+
+AWS Lambda（EventBridge Schedulerから日次実行）
+
+#### 入力
+
+EventBridge Schedulerからの定期実行時の入力（空のイベントまたはカスタムペイロード）：
+
+```json
+{
+  "version": "0",
+  "id": "12345678-1234-1234-1234-123456789012",
+  "detail-type": "Scheduled Event",
+  "source": "aws.scheduler",
+  "account": "123456789012",
+  "time": "2024-12-15T09:00:00Z",
+  "region": "ap-northeast-1",
+  "resources": ["arn:aws:scheduler:ap-northeast-1:123456789012:schedule/default/issue-extractor-daily"],
+  "detail": {
+    "target_date": "2024-12-14"
+  }
+}
+```
+
+#### 処理
+
+1. Secrets ManagerからGitHub PATを取得
+2. 前日クローズのIssue履歴をGitHub APIから取得
+3. Frontmatter Markdown形式でS3に保存
+4. Bedrock Knowledge BaseのStartIngestionJob実行
+
+#### 出力
+
+Lambda実行結果：
+
+```json
+{
+  "statusCode": 200,
+  "body": {
+    "processed_issues": 5,
+    "s3_files": [
+      "my-project/123_2024-12-14.md",
+      "my-project/124_2024-12-14.md",
+      "my-project/125_2024-12-14.md",
+      "my-project/126_2024-12-14.md",
+      "my-project/127_2024-12-14.md"
+    ],
+    "knowledge_base_sync": {
+      "ingestion_job_id": "ABCDEFGHIJKLMNOP",
+      "status": "STARTING"
+    },
+    "execution_time": "2024-12-15T09:00:15Z"
+  }
+}
 ```
 
 ## 処理シーケンス
@@ -86,14 +298,14 @@ def generate_session_id(slack_event):
     channel_id = slack_event['channel']
     thread_ts = slack_event.get('thread_ts')
     message_ts = slack_event['ts']
-    
+
     if thread_ts:
         # スレッド内での会話 - thread_tsをベースにセッションID作成
         root_ts = thread_ts
     else:
         # チャンネルでの新しい会話開始 - 現在のメッセージがルートになる
         root_ts = message_ts
-    
+
     # セッションIDの形式: user_channel_root-timestamp
     session_id = f"{user_id}_{channel_id}_{root_ts}"
     return session_id
@@ -238,4 +450,3 @@ url: "https://github.com/org/my-project/issues/123"
 - 異常系（パスワード間違い）のテスト
 - エラーメッセージ表示のテスト
 ```
-

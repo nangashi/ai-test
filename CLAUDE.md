@@ -68,6 +68,7 @@ Ctrl+Shift+P → "Dev Containers: Reopen Locally"         # ローカルで開�
 - **Terraformで構築する**: AWSリソースの作成・管理はTerraformを使用してInfrastructure as Codeで実施
 - **Lambdaはlambrollでデプロイする**: Lambda関数のデプロイ・管理はlambrollを使用して実施
 - **Secrets Managerはデフォルトでdummyという文字列を格納し、手動で値を書き換える**: セキュリティ上、初期値はプレースホルダーとして設定
+- **開発コンテナ内では認証設定済み**: 開発コンテナ内ではAWS認証が構成済みのため、AWS CLIやTerraformの認証設定は不要
 
 ### 命名規則
 
@@ -102,7 +103,7 @@ Ctrl+Shift+P → "Dev Containers: Reopen Locally"         # ローカルで開�
 - **暗号化**: S3ステートファイル、Knowledge Base等の保存時暗号化を有効化
 - **VPC内配置**: Lambda関数は可能な限りVPC内に配置してネットワーク分離
 
-## Terraform開発 (terraform/)
+## Terraform開発
 
 ### ディレクトリ構成
 
@@ -111,6 +112,38 @@ terraform/
 ├── main.tf         # Providerの設定とバージョン制約
 └── backend.tf      # S3バックエンド設定（ネイティブステートロック）
 ```
+
+### 初期構築
+
+新しいTerraformプロジェクトを作成する際の初期セットアップ手順：
+
+```bash
+# 1. Terraformディレクトリの作成
+mkdir -p terraform
+cd terraform
+
+# 2. main.tfの作成
+# 以下を含むmain.tfを作成：
+# - terraform {} ブロック（required_version）
+# - required_providers {} ブロック（aws provider v5.0+）
+# - provider "aws" {} ブロック（リージョン設定）
+
+# 3. backend.tfの作成
+# S3バックエンド設定を含むbackend.tfを作成：
+# - backend "s3" {} ブロック
+# - バケット: 384081048358-tfstate-2
+# - リージョン: ap-northeast-1
+# - use_lockfile = true（ネイティブステートロック）
+
+# 4. Terraformの初期化
+terraform init      # バックエンド設定とプロバイダーのダウンロード
+
+# 5. 設定の検証
+terraform validate  # 構文チェック
+terraform fmt      # フォーマット適用
+```
+
+この初期構築完了後、DESIGN.mdのシステム概要図に従ってAWSリソースの定義を開始する。
 
 ### コマンド
 
@@ -137,20 +170,22 @@ terraform apply     # インフラ変更の適用
 - **暗号化**: ステートファイルの暗号化を有効
 - **リージョン**: ap-northeast-1
 
-## Python開発 (apps/)
+## Python開発
 
-### ディレクトリ構成テンプレート
+### アプリケーション構造
+
+各アプリケーションはDESIGN.mdのアプリケーション一覧で定義された仕様に従って実装する：
 
 ```
-apps/<アプリ名>/
+apps/<application_name>/
 ├── README.md                 # アプリケーション説明
 ├── DESIGN.md                 # 設計書（詳細なアーキテクチャ）
 ├── pyproject.toml           # プロジェクト設定
 ├── uv.lock                  # 依存関係ロックファイル
 ├── src/
-│   └── main.py              # メインエントリーポイント
+│   └── main.py              # エントリーポイント（DESIGN.mdの入出力仕様に準拠）
 ├── lambroll/                # Lambdaデプロイ設定
-│   └── function.json        # Lambda関数設定
+│   └── function.json        # Lambda関数設定（DESIGN.mdのデプロイ先に対応）
 ├── tests/                   # ユニットテスト（クラス単位）
 │   ├── conftest.py          # pytest設定・フィクスチャ
 │   ├── test_*.py           # 各srcファイルに対応
@@ -160,6 +195,46 @@ apps/<アプリ名>/
     ├── conftest.py          # 結合テスト用設定
     └── test_*_scenario.py   # 業務シナリオのテスト
 ```
+
+### 初期構築
+
+新しいPythonアプリケーションを作成する際の初期セットアップ手順：
+
+```bash
+# 1. アプリケーションディレクトリの作成
+mkdir -p apps/<application_name>
+cd apps/<application_name>
+
+# 2. pyproject.tomlの配置
+# DESIGN.mdの仕様に基づいて以下を含むpyproject.tomlを作成：
+# - プロジェクト名・説明・バージョン
+# - Python要求バージョン
+# - 本番依存関係（boto3、injector等）
+# - 開発依存関係（pytest、ruff、mypy等）
+# - pytestの設定（pythonpath = ["src"]）
+
+# 3. 仮想環境の作成と有効化
+uv venv                    # 仮想環境作成
+source .venv/bin/activate  # 仮想環境有効化（以降の作業はこの環境で実施）
+
+# 4. 依存関係のインストール
+uv sync                    # pyproject.tomlに基づく依存関係インストール
+
+# 5. ディレクトリ構造の作成
+mkdir -p src tests tests-it lambroll
+touch src/main.py tests/conftest.py tests-it/conftest.py
+
+# 6. Lambdaデプロイ設定の作成（Lambdaアプリの場合）
+# lambroll/function.jsonをDESIGN.mdのデプロイ先仕様に合わせて作成
+```
+
+この初期構築完了後、DESIGN.mdの入出力仕様に従ってsrc/main.pyの実装を開始する。
+
+### 実装指針
+
+- **入出力仕様**: DESIGN.mdのアプリケーション一覧の入力・出力セクションに準拠
+- **デプロイ設定**: DESIGN.mdのデプロイ先情報をlambroll/function.jsonに反映
+- **テスト設計**: DESIGN.mdの処理フローを基に結合テストシナリオを作成
 
 ### 環境セットアップ
 
@@ -263,7 +338,9 @@ Python開発の標準ツール：
 
 #### 機能一覧
 
-実装の網羅性を確保するために、DESIGN.mdで定義されたシステムを構成する「実装の単位としての機能」を一覧として明記する
+実装の網羅性を確保するために、DESIGN.mdで定義されたアプリケーションを基準として実装単位を定義する
+
+各機能はapps/ディレクトリのアプリケーション名と対応し、DESIGN.mdのアプリケーション一覧で詳細仕様を参照する
 
 #### 開発の流れ
 
@@ -313,6 +390,20 @@ Python開発の標準ツール：
 - **具体的コマンド**: `terraform apply`、`uv run pytest`、`curl [URL]`等の実際に実行するコマンドを明記
 - **確認ポイント**: コマンド実行結果のどの部分を確認するかを明示（成功ステータス、設定値、レスポンス内容等）
 
+#### 補足情報の定義
+
+**参考情報**：
+
+- **設計書参照**: DESIGN.mdの該当セクションを明記
+- **実装ガイド参照**: CLAUDE.mdの技術セクションを明記
+- **特記事項**: 実装時の注意点・制約事項を明記
+
+**全体完了条件**：
+
+- **機能完全性**: DESIGN.mdで定義された全機能の動作確認
+- **フロー完全性**: エンドツーエンドの全体フローの成功確認
+- **品質確保**: 全テストの成功とAWS環境での安定動作
+
 ### 具体例
 
 ```markdown
@@ -324,57 +415,72 @@ Python開発の標準ツール：
 DESIGN.mdで定義された[システム/機能名]全体を実装し、設計書通りの完全なシステムを構築する
 
 ### 機能一覧
-- **Issue作成機能**: Slackからの依頼受付、AI処理、GitHub Issue作成
-- **Issue履歴収集機能**: 日次でのGitHub Issue履歴取得、S3保存、Knowledge Base更新
-- **セッション管理機能**: Bedrock Agentとの対話継続性確保
-- **AI知識基盤機能**: 過去Issue履歴の学習・検索・参照
+- **Slack連携アプリケーション (ai_interface)**: Slack Events API受信とBedrock Agent処理
+- **Issue作成アプリケーション (issue_creator)**: GitHub Issue作成機能
+- **Issue履歴抽出アプリケーション (issue_extractor)**: Issue履歴収集とKnowledge Base更新
 
 ## 開発の流れ
-1. **認証・権限基盤の構築**: GitHub PAT管理、IAM権限設定など各機能で利用する基盤のため最初に実施
-2. **Issue作成機能**: 他機能への依存が少なく単独で動作確認できるためここで実施
-3. **Issue履歴収集機能**: Issue作成機能に依存しないため並行実施可能
-4. **AI知識基盤機能**: Issue履歴収集機能のデータを活用するため後に実施
-5. **セッション管理機能**: Issue作成機能との連携が必要なため後に実施
-6. **統合テスト**: 全機能の開発完了後に全体フローを検証
+1. **認証・権限基盤の構築**: GitHub PAT管理、IAM権限設定など各アプリケーションで利用する基盤のため最初に実施
+2. **Issue作成アプリケーション (issue_creator)**: 他アプリケーションへの依存が少なく単独で動作確認できるためここで実施
+3. **Issue履歴抽出アプリケーション (issue_extractor)**: Issue作成アプリケーションに依存しないため並行実施可能
+4. **Slack連携アプリケーション (ai_interface)**: Issue作成アプリケーションとの連携が必要なため後に実施
+5. **統合テスト**: 全アプリケーションの開発完了後に全体フローを検証
 
 ## タスク
 
 ### 1. 認証・権限基盤の構築
 - [ ] **GitHub PAT格納場所の作成と手動格納**: Secrets Manager作成とダミー値から実際のトークンへの置換
   - 完了条件: GitHub PATが実際の値で格納されている
-  - 検証方法: `terraform apply` 成功後、AWS CLI経由でシークレット値を確認（実際の値が格納されていることを確認）
+  - 検証方法: Terraformでシークレット作成後、作成されたシークレットのARNまたは名前を使用してAWS CLIでシークレットの存在と値の設定状況を確認
 - [ ] **IAMロール・ポリシーの作成**: Lambda実行に必要な権限設定
   - 完了条件: 必要な権限が設定されている
-  - 検証方法: `terraform apply` 成功後、`aws iam list-attached-role-policies` で権限確認
+  - 検証方法: Terraformで作成されたIAMロール名を使用してAWS CLIでロールの存在とアタッチされたポリシーの内容を確認（Secrets Manager読み取り、Bedrock Agent実行権限等を含む）
 
-### 2. Issue作成機能
-- [ ] **Lambda(AI Interface)のローカル実装**: Slack Events API処理とSessionID生成の実装・テスト
+### 2. Issue作成アプリケーション (issue_creator)
+- [ ] **issue_creatorのローカル実装**: GitHub Issue作成機能の実装・テスト
   - 完了条件: ユニットテストが全て成功する
   - 検証方法: `uv run pytest --cov=src` でテスト実行し、全てPASSEDとなる
-- [ ] **Lambda(AI Interface)の実行基盤構築とデプロイ**: IAM・ログ等を含む実行基盤構築とデプロイ
+- [ ] **issue_creatorの実行基盤構築とデプロイ**: IAM・ログ等を含む実行基盤構築とデプロイ
   - 完了条件: AWS環境で正常に動作する
-  - 検証方法: `lambroll deploy` 成功後、`curl [Function URL]` で動作確認
+  - 検証方法: lambrollでデプロイ完了後、AWS CLIでLambda関数の存在とIAMロール設定、環境変数設定を確認し、テストイベントでの動作確認を実施
 
-### 3. Issue履歴収集機能
-- [ ] **Lambda(Issue Extractor)のローカル実装**: GitHub Issue履歴収集とS3保存の実装・テスト
+### 3. Issue履歴抽出アプリケーション (issue_extractor)
+- [ ] **issue_extractorのローカル実装**: GitHub Issue履歴収集とS3保存の実装・テスト
   - 完了条件: ユニットテストが全て成功する
   - 検証方法: `uv run pytest --cov=src` でテスト実行し、全てPASSEDとなる
 - [ ] **S3バケットとEventBridge Schedulerの構築**: データ保存基盤と定期実行設定
   - 完了条件: 指定時刻にLambda関数が自動実行される
-  - 検証方法: `terraform apply` 成功後、`aws scheduler get-schedule` で設定確認
+  - 検証方法: TerraformでS3バケットとEventBridge Schedulerを作成後、AWS CLIでS3バケットの暗号化設定とスケジュールの実行設定（対象Lambda関数、実行時刻、状態）を確認
+- [ ] **issue_extractorの実行基盤構築とデプロイ**: IAM・ログ等を含む実行基盤構築とデプロイ
+  - 完了条件: AWS環境で正常に動作する
+  - 検証方法: lambrollでデプロイ完了後、AWS CLIでLambda関数の存在と権限設定を確認し、EventBridge Schedulerからの手動実行でS3へのファイル保存動作を検証
 
-### 4. AI知識基盤機能
+### 4. Slack連携アプリケーション (ai_interface)
+- [ ] **ai_interfaceのローカル実装**: Slack Events API処理とSessionID生成の実装・テスト
+  - 完了条件: ユニットテストが全て成功する
+  - 検証方法: `uv run pytest --cov=src` でテスト実行し、全てPASSEDとなる
+- [ ] **ai_interfaceの実行基盤構築とデプロイ**: IAM・ログ等を含む実行基盤構築とデプロイ
+  - 完了条件: AWS環境で正常に動作する
+  - 検証方法: lambrollでデプロイ完了後、TerraformまたはAWS CLIでFunction URLを取得し、curlでHTTPリクエスト送信して正常なレスポンス（HTTP 200）を確認
 - [ ] **Bedrock Knowledge Baseの構築**: S3データソース連携設定
   - 完了条件: Knowledge BaseがS3バケットをデータソースとして設定されている
-  - 検証方法: `terraform apply` 成功後、`aws bedrock-agent get-knowledge-base` で設定確認
-
-### 5. セッション管理機能
+  - 検証方法: TerraformでKnowledge Base作成後、AWS CLIでKnowledge BaseのIDを使用してデータソース設定（S3バケット連携、ベクトルエンジン設定）と状態を確認
 - [ ] **Bedrock Agentの構築**: Knowledge Base連携とLambdaアクション設定
   - 完了条件: AgentがKnowledge BaseとLambda(Issue Creator)を呼び出せる
-  - 検証方法: `terraform apply` 成功後、`aws bedrock-agent get-agent` で設定確認
+  - 検証方法: TerraformでBedrock Agent作成後、AWS CLIでAgentのIDを使用してKnowledge Base関連付け、アクショングループ設定（Lambda関数の呼び出し権限）、Agent状態を確認
 
-### 6. 統合テスト
+### 5. 統合テスト
 - [ ] **全体フロー統合テスト**: Slack→AI→GitHub Issue作成の全体フロー確認
   - 完了条件: 設計書通りの全体フローが動作する
-  - 検証方法: `curl` でリクエスト送信し、`aws logs filter-log-events` でログ確認
+  - 検証方法: Slack Events APIのテストペイロードをai_interfaceのFunction URLに送信し、Bedrock Agent経由でIssue作成が実行されることをCloudWatchログとGitHub APIで確認
+
+### 参考情報
+- 設計書: DESIGN.md の該当セクション（システム概要図、Issue作成、Issue履歴抽出）
+- 実装ガイド: CLAUDE.md のTerraform開発・Python開発・AWS環境セクション
+- 特記事項: AWS Well-Architectedセキュリティ原則の遵守、Bedrock Agent SessionID制限
+
+### 全体完了条件
+- DESIGN.mdで定義された全機能（Issue作成・Issue履歴抽出）が設計書通りに動作すること
+- Slack→AI→GitHub Issue作成の全フローが成功すること
+- 全てのコンポーネントの単体・結合テストが成功すること
 ```
