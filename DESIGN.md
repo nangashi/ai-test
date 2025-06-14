@@ -15,23 +15,44 @@ AWS Bedrockを活用したSlackベースのIssue起票システム。ユーザ�
 ## システム概要図
 
 ```mermaid
-graph TD
-    A((User)) -->|request| B[Slack]
-    B -->|Events API| C["Lambda<br/>(AI Interface)"]
-    C -->|query| D{Bedrock Agent}
-    D --> E[("Bedrock Knowledge Base<br/>(Issue/Team Knowledge)")]
-    E --> D
-    D -->|action call| I["Lambda<br/>(Issue Creator)"]
-    I -->|create issue| F[GitHub]
-    D -->|response| C
-    C -->|response| B
-    B -->|created issue info| A
-
-    H[EventBridge Scheduler] -->|daily trigger| G["Lambda<br/>(Issue Extractor)"]
-    F --> G
-    G -->|put| J["S3<br/>(Issue History)"]
-    J -->|data source| E
-    G -->|StartIngestionJob| E
+graph TB
+    subgraph "ユーザーインターフェース"
+        A((User))
+        B[Slack]
+    end
+    
+    subgraph "アプリケーション層"
+        C["Lambda<br/>(AI Interface)"]
+        I["Lambda<br/>(Issue Creator)"]
+        G["Lambda<br/>(Issue Extractor)"]
+        H[EventBridge Scheduler]
+    end
+    
+    subgraph "AI・ナレッジ層"
+        D{Bedrock Agent}
+        E[("Bedrock Knowledge Base")]
+    end
+    
+    subgraph "外部サービス・ストレージ"
+        F[GitHub]
+        J["S3<br/>(Issue History)"]
+    end
+    
+    A -->|メンション| B
+    B -->|Events API| C
+    C -->|クエリ| D
+    D <-->|検索・応答| E
+    D -->|アクション| I
+    I -->|Issue作成| F
+    D -->|応答| C
+    C -->|プレビュー/通知| B
+    B -->|表示| A
+    
+    H -->|日次実行| G
+    F -->|履歴取得| G
+    G -->|保存| J
+    J -->|データソース| E
+    G -->|同期開始| E
 ```
 
 ## 処理シーケンス
