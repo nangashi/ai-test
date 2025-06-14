@@ -9,7 +9,7 @@ AWS Bedrockを活用したSlackベースのIssue起票システムです。ユ�
 - AWS上に構築されたシステム
 - Slackでメンションして依頼することでGitHub Issueの作成が可能
 - 依頼すると文案を提示し、指示するとIssueを作成する
-- 対話により文案の修正も可能
+- 対話により文案の修正が可能（Bedrock Agentのセッション管理機能を活用）
 - クローズ済みIssueを日次で収集し、Issue作成時の参考にする
 
 ## 処理フロー
@@ -17,21 +17,86 @@ AWS Bedrockを活用したSlackベースのIssue起票システムです。ユ�
 ```mermaid
 graph TD
     A((User)) -->|request| B[Slack]
-    B -->|event| C["Lambda<br/>(AI Interface)"]
+    B -->|Events API| C["Lambda<br/>(AI Interface)"]
     C -->|query| D{Bedrock Agent}
     D --> E[("Bedrock Knowledge Base<br/>(Issue/Team Knowledge)")]
     E --> D
-    D -->|create issue| F[GitHub]
+    D -->|action call| I["Lambda<br/>(Issue Creator)"]
+    I -->|create issue| F[GitHub]
     D -->|response| C
     C -->|response| B
     B -->|created issue info| A
 
     H[EventBridge Scheduler] -->|daily trigger| G["Lambda<br/>(Issue Extractor)"]
     F --> G
-    G --> E
+    G -->|put| J["S3<br/>(Issue History)"]
+    G -->|StartIngestionJob| E
 ```
 
 ## 処理シーケンス
+
+### Issue作成
+
+#### 処理概要
+
+- ユーザーがSlackでBotにメンションしてIssue作成を依頼
+- SlackのEvents APIからLambda Function URL経由でLambda（AI Interface）にイベント送信
+- LambdaがBedrock Agentにクエリを送信してIssue内容の生成を依頼
+- Bedrock AgentがKnowledge Baseから過去のIssue履歴や関連情報を検索
+- 検索結果を基にBedrock AgentがIssue作成内容（タイトル、本文、ラベル等）を生成
+- 生成されたIssue内容をSlackに返信してユーザーに確認を求める
+- ユーザーが修正依頼をした場合、同一SessionIDで対話を継続し内容を修正
+- 最終承認後、Bedrock AgentがアクションでLambda（Issue Creator）を呼び出し
+- Lambda（Issue Creator）がGitHub APIを使用してIssueを作成
+- 作成完了とIssue URLをSlackに通知
+
+#### シーケンス図
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant S as Slack
+    participant L1 as Lambda<br/>(AI Interface)
+    participant BA as Bedrock Agent
+    participant KB as Bedrock Knowledge Base
+    participant L2 as Lambda<br/>(Issue Creator)
+    participant SM as Secrets Manager
+    participant GH as GitHub
+
+    Note over BA: SessionID生成
+    
+    U->>S: mention/request
+    S->>L1: event (Function URL)
+    L1->>BA: query (sessionId)
+    BA->>KB: search knowledge
+    KB->>BA: knowledge data
+    BA->>L1: generated issue content
+    L1->>S: issue preview
+    S->>U: issue preview
+    
+    alt 修正依頼の場合
+        U->>S: modification request
+        S->>L1: modification event
+        L1->>BA: modify request (same sessionId)
+        Note over BA: 会話履歴保持
+        BA->>L1: modified issue content
+        L1->>S: updated preview
+        S->>U: updated preview
+    end
+    
+    U->>S: final approval
+    S->>L1: approval event
+    L1->>BA: create issue request (same sessionId)
+    BA->>L2: action call (issue data)
+    L2->>SM: request
+    SM->>L2: PAT
+    L2->>GH: create issue
+    GH->>L2: issue created (with URL)
+    L2->>BA: issue created response
+    BA->>L1: response
+    L1->>S: success notification with URL
+    S->>U: created issue info with URL
+```
 
 ### Issue履歴抽出
 
@@ -40,7 +105,7 @@ graph TD
 - EventBridge Schedulerが日次でLambda（Issue Extractor）を起動
 - LambdaがSecrets ManagerからGitHub Personal Access Token（PAT）を取得
 - 取得したPATを使用してGitHub APIから**前日にクローズしたIssue**の履歴データを取得
-  - GitHub API: `GET /repos/{owner}/{repo}/issues?state=closed&closed={前日日付}`
+  - GitHub API: `GET /repos/{owner}/{repo}/issues?state=closed&closed:YYYY-MM-DD..YYYY-MM-DD`
 - 取得したIssue履歴をFrontmatter Markdown形式でS3バケットに保存
 - Bedrock Knowledge BaseのStartIngestionJob APIを実行してS3データを同期
 - Knowledge Baseが新しいIssue履歴データを学習データとして利用可能になる
@@ -125,24 +190,22 @@ url: "https://github.com/org/my-project/issues/123"
 
 - **Slack**: ユーザーインターフェース、メンション受付
 
-### API レイヤー
-
-- **API Gateway**: Slackイベントの受信エンドポイント
-
 ### アプリケーションレイヤー
 
-- **Lambda (AI Interface)**: Slackイベント処理、Bedrock連携、レスポンス生成
+- **Lambda (AI Interface)**: Function URL有効、Slackイベント処理、Bedrock連携、レスポンス生成
+- **Lambda (Issue Creator)**: GitHub Issue作成、PAT管理
 
 ### AI レイヤー
 
-- **Bedrock Agent**: AIエージェント、自然言語処理
+- **Bedrock Agent**: AIエージェント、自然言語処理、セッション管理による対話機能
 - **Bedrock Knowledge Base**: ナレッジベース、情報検索
 
-## データフロー
+### ストレージレイヤー
 
-1. **ユーザー操作**: SlackでBotにメンション
-2. **イベント送信**: SlackからAPI Gatewayにイベント送信
-3. **リクエスト処理**: LambdaでSlackイベントを解析
-4. **AI処理**: Bedrock AgentでIssue内容を生成
-5. **情報検索**: Knowledge Baseから関連情報を取得
-6. **レスポンス生成**: 生成されたIssue情報をSlackに返信
+- **S3**: Issue履歴データ保存（Frontmatter Markdown形式）
+- **Secrets Manager**: GitHub Personal Access Token管理
+
+### スケジューラ
+
+- **EventBridge Scheduler**: 日次Issue履歴抽出トリガー
+
