@@ -34,6 +34,7 @@
         // Docker/コンテナ関連
         "ms-azuretools.vscode-docker",
         // Markdown関連
+        "yzhang.markdown-all-in-one",
         "davidanson.vscode-markdownlint",
         "bierner.markdown-mermaid",
         // その他ユーティリティ

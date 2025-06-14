@@ -6,11 +6,10 @@ AWS Bedrockを活用したSlackベースのIssue起票システム。ユーザ�
 
 ## 特徴
 
-- AWS上に構築されたシステム
-- Slackでメンションして依頼することでGitHub Issueの作成が可能
-- 依頼すると文案を提示し、対話により文案の修正が可能
-- 作成を指示するとIssueを起票する
-- クローズ済みIssueを収集し、Issue作成時の前提知識とする
+- **Slack連携**: メンションベースの直感的なIssue作成インターフェース
+- **AI支援**: 過去のIssue履歴を参照した適切なIssue内容の自動生成
+- **対話式修正**: プレビュー確認と修正依頼による段階的なIssue精度向上
+- **自動学習**: クローズ済みIssueの日次収集によるナレッジベース更新
 
 ## システム概要図
 
@@ -24,7 +23,7 @@ graph TB
     subgraph "アプリケーション層"
         C["Lambda<br/>(AI Interface)"]
         I["Lambda<br/>(Issue Creator)"]
-        G["Lambda<br/>(Issue Extractor)"]
+        L3["Lambda<br/>(Issue Extractor)"]
         H[EventBridge Scheduler]
     end
     
@@ -36,6 +35,7 @@ graph TB
     subgraph "外部サービス・ストレージ"
         F[GitHub]
         J["S3<br/>(Issue History)"]
+        SM[Secrets Manager]
     end
     
     A -->|メンション| B
@@ -43,16 +43,18 @@ graph TB
     C -->|クエリ| D
     D <-->|検索・応答| E
     D -->|アクション| I
+    I -->|PAT取得| SM
     I -->|Issue作成| F
     D -->|応答| C
     C -->|プレビュー/通知| B
     B -->|表示| A
     
-    H -->|日次実行| G
-    F -->|履歴取得| G
-    G -->|保存| J
+    H -->|日次実行| L3
+    L3 -->|PAT取得| SM
+    L3 -->|履歴取得| F
+    L3 -->|保存| J
     J -->|データソース| E
-    G -->|同期開始| E
+    L3 -->|同期開始| E
 ```
 
 ## 処理シーケンス
@@ -117,10 +119,9 @@ sequenceDiagram
     participant SM as Secrets Manager
     participant GH as GitHub
 
-    Note over BA: SessionID生成
-
     U->>S: メンション/依頼
     S->>L1: イベント送信 (Function URL)
+    Note over L1: SessionID生成
     L1->>BA: クエリ送信 (sessionId)
     BA->>KB: ナレッジ検索
     KB->>BA: 関連データ
@@ -169,21 +170,21 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant ES as EventBridge Scheduler
-    participant L2 as Lambda<br/>(Issue Extractor)
+    participant L3 as Lambda<br/>(Issue Extractor)
     participant SM as Secrets Manager
     participant GH as GitHub
     participant S3 as S3<br/>(Issue History)
     participant KB as Bedrock Knowledge Base
 
-    ES->>L2: 日次トリガー
-    L2->>SM: PAT取得要求
-    SM->>L2: PAT返却
-    L2->>GH: Issue履歴取得
-    GH->>L2: Issue履歴データ
-    L2->>S3: データ保存
-    S3->>L2: 保存完了
-    L2->>KB: データ同期開始
-    KB->>L2: 同期完了
+    ES->>L3: 日次トリガー
+    L3->>SM: PAT取得要求
+    SM->>L3: PAT返却
+    L3->>GH: Issue履歴取得
+    GH->>L3: Issue履歴データ
+    L3->>S3: データ保存
+    S3->>L3: 保存完了
+    L3->>KB: データ同期開始
+    KB->>L3: 同期完了
 ```
 
 #### 保存データ形式
