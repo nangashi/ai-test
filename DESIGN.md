@@ -84,31 +84,46 @@ graph TB
 sequenceDiagram
     participant U as User
     participant S as Slack
-    participant IC as Issue作成機能
-    participant AN as AIナレッジ
+    
+    box navy Issue作成機能
+        participant SH as Lambda<br/>(Slackハンドラー)
+        participant BA as Bedrock Agent
+        participant IG as Lambda<br/>(Issue生成ツール)
+    end
+    
+    participant KB as Knowledge Base
+    participant SM as Secrets Manager
     participant GH as GitHub
 
     U->>S: Issue作成依頼
-    S->>IC: イベントコール
-    IC->>AN: Issue履歴参照
-    AN->>IC: 関連データ
-    IC->>IC: Issue内容生成
-    IC->>S: Issue提案
+    S->>SH: イベントコール
+    SH->>BA: クエリ送信
+    BA->>KB: Issue履歴参照
+    KB->>BA: 関連データ
+    BA->>SH: Issue内容生成
+    SH->>S: Issue提案
     S->>U: Issue提案
 
     alt 修正依頼の場合
         U->>S: 修正指示
-        S->>IC: 修正イベントコール
-        IC->>IC: Issue内容修正
-        IC->>S: 修正Issue提案
+        S->>SH: 修正イベントコール
+        SH->>BA: 修正リクエスト
+        BA->>SH: 修正されたIssue内容
+        SH->>S: 修正Issue提案
         S->>U: 修正Issue提案
     end
 
     U->>S: 最終承認
-    S->>IC: 承認イベントコール
-    IC->>GH: Issue作成
-    GH->>IC: 作成完了
-    IC->>S: 完了通知
+    S->>SH: 承認イベントコール
+    SH->>BA: Issue作成リクエスト
+    BA->>IG: アクション実行
+    IG->>SM: PAT取得
+    SM->>IG: PAT返却
+    IG->>GH: Issue作成
+    GH->>IG: 作成完了
+    IG->>BA: 作成完了応答
+    BA->>SH: 応答
+    SH->>S: 完了通知
     S->>U: 作成完了情報
 ```
 
@@ -117,16 +132,26 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant ES as EventBridge Scheduler
-    participant INF as Issueナレッジ機能
+    
+    box darkgreen Issueナレッジ機能
+        participant KBT as Lambda<br/>(ナレッジ構築ツール)
+        participant S3 as S3
+    end
+    
+    participant SM as Secrets Manager
     participant GH as GitHub
-    participant AN as AIナレッジ
+    participant KB as Knowledge Base
 
-    ES->>INF: 日次トリガー
-    INF->>GH: Issue履歴取得
-    GH->>INF: Issue履歴データ
-    INF->>INF: データ処理・構造化
-    INF->>AN: ナレッジ蓄積
-    AN->>INF: 蓄積完了
+    ES->>KBT: 日次トリガー
+    KBT->>SM: PAT取得
+    SM->>KBT: PAT返却
+    KBT->>GH: Issue履歴取得
+    GH->>KBT: Issue履歴データ
+    KBT->>KBT: データ処理・構造化
+    KBT->>S3: データ保存
+    S3->>KBT: 保存完了
+    S3->>KB: ナレッジ蓄積
+    KB->>KBT: 蓄積完了
 ```
 
 ## アプリケーション一覧
