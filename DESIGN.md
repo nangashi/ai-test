@@ -40,14 +40,14 @@ graph TB
     GH[GitHub]
 
     subgraph "Issue作成機能"
-        AI["AI Interface<br/>(ai_interface)"]
-        IC["Issue Creator<br/>(issue_creator)"]
+        SH["Lambda<br/>(Slackハンドラー)"]
+        IG["Lambda<br/>(Issue生成ツール)"]
         BA{Bedrock Agent}
     end
 
     subgraph "Issueナレッジ機能"
         ES[EventBridge Scheduler]
-        IE["Issue Extractor<br/>(issue_extractor)"]
+        KB_TOOL["Lambda<br/>(ナレッジ構築ツール)"]
         S3[S3]
     end
 
@@ -57,23 +57,23 @@ graph TB
     end
 
     U -->|Issue作成依頼| S
-    S -->|イベントコール| AI
-    AI -->|クエリ| BA
-    BA -->|アクション| IC
-    IC -->|Issue作成| GH
-    BA -->|Issue提案| AI
-    AI -->|Issue提案| S
+    S -->|イベントコール| SH
+    SH -->|クエリ| BA
+    BA -->|アクション| IG
+    IG -->|Issue作成| GH
+    BA -->|Issue提案| SH
+    SH -->|Issue提案| S
     S -->|Issue提案| U
 
-    ES -->|日次トリガー| IE
-    IE -->|Issue履歴取得| GH
-    IE -->|データ保存| S3
+    ES -->|日次トリガー| KB_TOOL
+    KB_TOOL -->|Issue履歴取得| GH
+    KB_TOOL -->|データ保存| S3
 
     BA <-->|Issue履歴参照| KB
     S3 -->|ナレッジ蓄積| KB
 
-    IC -->|PAT取得| SM
-    IE -->|PAT取得| SM
+    IG -->|PAT取得| SM
+    KB_TOOL -->|PAT取得| SM
 ```
 
 ## 機能シーケンス
@@ -131,7 +131,7 @@ sequenceDiagram
 
 ## アプリケーション一覧
 
-### issue_creator
+### Issue生成ツール (issue_generator)
 
 #### 概要
 
@@ -225,7 +225,7 @@ Bedrock Agentへのレスポンス：
   }
 }
 
-### AI Interface (ai_interface)
+### Slackハンドラー (slack_handler)
 
 #### 概要
 
@@ -336,7 +336,7 @@ Slack APIへのメッセージ投稿：
 }
 ```
 
-### Issue履歴抽出 (issue_extractor)
+### ナレッジ構築ツール (knowledge_builder)
 
 #### 概要
 
@@ -459,7 +459,7 @@ url: "GitHub Issue URL"
 **Action Group**:
 
 - **Name**: `"issue-creator"`
-- **Lambda Function**: issue_creator Lambda関数のARN
+- **Lambda Function**: issue_generator Lambda関数のARN
 - **OpenAPI Schema**: 必須パラメータ `repository, title, body`、オプション `labels`
 
 ### Knowledge Base設定
@@ -487,6 +487,6 @@ SlackイベントのメタデータからSessionIDを決定論的に生成し、
 
 - **Name**: `"dev-issue-extractor-daily-schedule"`
 - **Schedule**: `"cron(0 16 * * ? *)"`
-- **Target**: issue_extractor Lambda関数
+- **Target**: knowledge_builder Lambda関数
 - **Input**: `{"target_date": "previous_day"}`
 - **Retry**: 3回、1時間以内
