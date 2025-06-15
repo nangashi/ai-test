@@ -84,13 +84,13 @@ graph TB
 sequenceDiagram
     participant U as User
     participant S as Slack
-    
+
     box navy Issue作成機能
         participant SH as Lambda<br/>(Slackハンドラー)
         participant BA as Bedrock Agent
         participant IG as Lambda<br/>(Issue生成ツール)
     end
-    
+
     participant KB as Knowledge Base
     participant SM as Secrets Manager
     participant GH as GitHub
@@ -132,12 +132,12 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant ES as EventBridge Scheduler
-    
+
     box darkgreen Issueナレッジ機能
         participant KBT as Lambda<br/>(ナレッジ構築ツール)
         participant S3 as S3
     end
-    
+
     participant SM as Secrets Manager
     participant GH as GitHub
     participant KB as Knowledge Base
@@ -160,11 +160,7 @@ sequenceDiagram
 
 #### 概要
 
-GitHub Issue作成を実行するLambda関数
-
-#### デプロイ先
-
-AWS Lambda（Bedrock Agentからのアクション呼び出し用）
+Bedrock Agentからのアクション呼び出しで起動し、GitHub Issueを作成するLambda関数
 
 #### 入力
 
@@ -254,11 +250,7 @@ Bedrock Agentへのレスポンス：
 
 #### 概要
 
-Slack Events APIを受信してBedrock Agentとやり取りするLambda関数
-
-#### デプロイ先
-
-AWS Lambda（Function URL有効化でSlack連携）
+Slackのapp_mentionイベントで起動し、Bedrock Agentとやり取りしてSlackに応答するLambda関数
 
 #### 入力
 
@@ -365,11 +357,7 @@ Slack APIへのメッセージ投稿：
 
 #### 概要
 
-GitHub Issue履歴を定期収集してS3保存・Knowledge Base更新するLambda関数
-
-#### デプロイ先
-
-AWS Lambda（EventBridge Schedulerから日次実行）
+EventBridge Schedulerの日次スケジュールで起動し、GitHub Issue履歴を収集してS3保存・Knowledge Base更新するLambda関数
 
 #### 入力
 
