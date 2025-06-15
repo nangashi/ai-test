@@ -110,9 +110,19 @@ Ctrl+Shift+P → "Dev Containers: Reopen Locally"         # ローカルで開�
 
 ```
 terraform/
-├── main.tf         # Providerの設定とバージョン制約
-└── backend.tf      # S3バックエンド設定（ネイティブステートロック）
+├── main.tf              # Providerの設定とバージョン制約
+├── backend.tf           # S3バックエンド設定（ネイティブステートロック）
+├── secrets.tf           # Secrets Manager（共通シークレット管理）
+├── web_api.tf           # Web API Lambda + IAM + Function URL
+├── batch_processor.tf   # バッチ処理 Lambda + IAM + S3 + EventBridge
+└── notification_service.tf  # 通知サービス Lambda + IAM + 外部サービス連携
 ```
+
+**ファイル分割方針:**
+- **アプリケーション単位**: 各Lambda関数とその依存リソース（IAM、S3、EventBridge等）を同一ファイルに配置
+- **共通リソース**: 複数アプリケーションで使用するリソース（Secrets Manager等）は独立ファイルに配置
+- **関連リソースの集約**: Lambda関数、IAMロール、ポリシー、トリガー等の関連リソースを機能別にグループ化
+- **命名規則**: `{機能名}.tf` でファイル名を決定し、内部リソースは `{env}-{機能名}-{リソース種別}` で命名
 
 ### 初期構築
 
@@ -266,14 +276,6 @@ uv add <パッケージ名>      # 本番依存関係追加
 uv add --dev <パッケージ名> # 開発依存関係追加
 uv remove <パッケージ名>   # パッケージ削除
 
-# デプロイ（Lambdaアプリの場合）
-lambroll deploy           # Lambda関数をデプロイ
-lambroll deploy --dry-run # デプロイ内容の確認
-lambroll rollback         # 前のバージョンにロールバック
-lambroll delete           # Lambda関数を削除
-lambroll delete --dry-run # 削除内容の確認
-lambroll logs             # 最新のログを表示
-lambroll logs --follow    # ログをリアルタイム監視
 ```
 
 ### 技術スタック
@@ -317,15 +319,38 @@ Python開発の標準ツール：
 
 #### lambrollを使用したデプロイ
 
-**設定ファイル**: `lambroll/function.json`でLambda関数の設定を管理
+**設定ファイル**: `function.json`でLambda関数の設定を管理
 
 #### デプロイワークフロー
 
 1. **コード品質チェック**: ruff format/check、mypy実行
 2. **テスト実行**: pytestでユニット・結合テスト
-3. **デプロイ準備**: lambroll deploy --dry-runで確認
-4. **デプロイ実行**: lambroll deployで本番反映
-5. **動作確認**: lambroll logsでログ確認
+3. **デプロイパッケージ作成**: Lambda用zipパッケージの生成
+   - `uv export --no-dev --format requirements-txt > requirements.txt`
+   - `mkdir lambda_package`
+   - `pip install -r requirements.txt --target lambda_package --quiet`
+   - `cp src/*.py lambda_package/`
+   - `cd lambda_package && zip -r ../deployment.zip . -x "*.pyc" "*/__pycache__/*"`
+4. **デプロイ準備**: lambroll deploy --dry-runで確認
+5. **デプロイ実行**: lambroll deploy --src deployment.zipで本番反映
+6. **動作確認**: lambroll logsでログ確認
+
+#### lambrollコマンド
+
+```bash
+# デプロイ
+lambroll deploy --src deployment.zip    # zipファイル指定でデプロイ
+lambroll deploy --dry-run               # デプロイ内容の確認
+
+# 管理
+lambroll rollback                       # 前のバージョンにロールバック
+lambroll delete                         # Lambda関数を削除
+lambroll delete --dry-run               # 削除内容の確認
+
+# 監視
+lambroll logs                           # 最新のログを表示
+lambroll logs --follow                  # ログをリアルタイム監視
+```
 
 ## 作業指示
 
@@ -391,8 +416,21 @@ Python開発の標準ツール：
 
 - **Claude Codeから実行可能**: CLIコマンド・API呼び出しのみ記載（Claude CodeはWebコンソールにアクセスできないため）
 - **具体的コマンド**: `terraform apply`、`uv run pytest`、`curl [URL]`等の実際に実行するコマンドを明記
-- **確認ポイント**: コマンド実行結果のどの部分を確認するかを明示（成功ステータス、設定値、レスポンス内容等）
+- **判定基準の明確化**: コマンド実行結果の具体的な成功/失敗判定基準を明示
+  - **期待値**: HTTPステータス200、特定の設定値、レスポンスフィールドの存在等の具体的な値
+  - **判定方法**: どのフィールド・プロパティで成功を判断するか（例：Status="ACTIVE"、Count > 0、Value != "dummy"等）
+  - **数値条件**: 範囲、閾値、カウント等の具体的な数値基準（例：30以上、1-5の範囲等）
+  - **文字列条件**: 完全一致、パターンマッチ、含有等の文字列判定基準（例：HTTPSで始まる、"FAILED"が含まれない等）
+- **段階的検証**: 複雑なタスク（設定ファイル作成、スキーマ定義等）では検証を段階的に記載
+  - 箇条書き形式で順序立てて検証手順を明記
+  - 各段階で確認する具体的な値・状態・プロパティと期待値を明記
+  - DESIGN.mdの設定詳細セクション等の参照すべき仕様を明示
+  - 成功時の期待値と判定条件を明記
 - **人による作業依頼**: Claude Codeでは実行不可能な作業（外部トークン生成、手動設定、UI確認等）は人に作業・検証を依頼し、完了報告後にClaude Codeが可能な範囲で結果を検証することを明記
+- **進捗管理**: タスク完了時にMarkdownチェックボックスを更新し、進捗を可視化
+  - 各タスクは`- [ ]`形式のチェックボックスで記載
+  - タスク完了後は検証方法を実行し、全て成功した場合に`- [x]`へ更新
+  - 進捗状況を明確にするため、完了時には「タスク完了: [タスク名]」をメッセージで報告
 
 #### 人による作業依頼のワークフロー
 
@@ -435,7 +473,8 @@ Claude Codeでは外部サービス間の連携確認ができないため、人
 **参考情報**：
 
 - **設計書参照**: DESIGN.mdの該当セクションを明記
-- **実装ガイド参照**: CLAUDE.mdの技術セクションを明記
+- **実装ガイド参照**: CLAUDE.mdの技術セクション（Terraform開発、Python開発、AWS環境等）を明記
+- **実装ルール**: CLAUDE.mdの命名規則、ディレクトリ構成、開発方針に従うことを明記
 - **特記事項**: 実装時の注意点・制約事項を明記
 
 **全体完了条件**：
@@ -470,35 +509,77 @@ DESIGN.mdで定義されたデータ処理システム全体を実装し、設�
 ### 1. 基盤構築
 - [ ] **Secrets Manager作成**: API Key格納場所の作成とダミー値設定
   - 完了条件: Secrets Managerにダミー値が格納されている
-  - 検証方法: AWS CLIでシークレット値が"dummy"であることを確認
+  - 検証方法: `aws secretsmanager get-secret-value`コマンドでSecretStringが"dummy"であることを確認
 - [ ] **API Key手動設定**: 外部サービスから取得したAPI Keyの格納
   - 完了条件: API Keyが実際の値で格納されている
-  - 検証方法: 人による作業を依頼（外部サービスでAPI Key生成し、`aws secretsmanager update-secret`コマンドで更新）、完了報告後にAWS CLIでシークレット値が"dummy"以外であることを確認
+  - 検証方法: 
+    1. 人による作業を依頼（外部サービスでAPI Key生成し、`aws secretsmanager update-secret`コマンドで更新）
+    2. 完了報告後に`aws secretsmanager get-secret-value`でSecretStringが"dummy"でないことを確認
+    3. SecretStringの長さが20文字以上であることを確認
+    4. 外部APIエンドポイントへのHTTP GETリクエストでHTTPステータス200が返されることを確認
 - [ ] **IAMロール・ポリシー作成**: Lambda実行に必要な権限設定
   - 完了条件: 必要な権限が設定されている
-  - 検証方法: AWS CLIでIAMロールに`secretsmanager:GetSecretValue`権限を含むポリシーがアタッチされていることを確認
+  - 検証方法: `aws iam list-attached-role-policies`でポリシーが1つ以上アタッチされ、`aws iam get-policy-version`でAction配列に"secretsmanager:GetSecretValue"が含まれることを確認
 
 ### 2. データ収集アプリケーション
 - [ ] **ローカル実装**: 外部API連携機能の実装・テスト
   - 完了条件: ユニットテストが全て成功する
-  - 検証方法: `uv run pytest --cov=src` でテスト実行し、出力に"FAILED"が含まれず、全テストが"PASSED"と表示されることを確認
+  - 検証方法: `uv run pytest --cov=src` でテスト実行し、出力に"FAILED"が含まれず、全テストが"PASSED"と表示され、カバレッジが90%以上であることを確認
+- [ ] **設定ファイル作成**: 外部API連携用の設定定義
+  - 完了条件: 設定ファイルがDESIGN.md仕様に準拠して作成されている
+  - 検証方法:
+    1. 指定パス（`config/api-config.json`）にファイルが存在することを確認
+    2. `jq '.' config/api-config.json` でパースエラーが発生しないことを確認
+    3. `jq '.endpoint' config/api-config.json` で"https://"で始まるURL文字列が返されることを確認
+    4. `jq '.timeout' config/api-config.json` で30以上の数値が返されることを確認
+    5. `jq '.retries' config/api-config.json` で1-5の範囲の数値が返されることを確認
 - [ ] **デプロイと動作確認**: AWS環境での動作確認
   - 完了条件: AWS環境で正常に動作する
-  - 検証方法: lambrollでデプロイ後、AWS CLIでLambda関数のStateが"Active"であり、ExecutionRoleが作成したIAMロールのARNと一致することを確認
+  - 検証方法: 
+    1. `lambroll deploy`コマンドが終了コード0で完了することを確認
+    2. `aws lambda get-function`でStateが"Active"であることを確認
+    3. `aws lambda get-function`のConfiguration.RoleがIAMロールのARNと一致することを確認
+    4. `aws logs filter-log-events`でエラーログが存在しないことを確認
 
 ### 3. 統合テスト
 - [ ] **全体フロー確認**: データ収集→変換→出力の全体フロー確認
   - 完了条件: 設計書通りの全体フローが動作する
-  - 検証方法: テストデータでの全工程実行し、DESIGN.mdで定義されたJSON形式のファイルがS3バケットに保存されることを確認
+  - 検証方法: 
+    1. `aws lambda invoke`でテストデータを使用した全工程実行
+    2. `aws s3 ls`でS3バケットに結果ファイルが1つ以上存在することを確認
+    3. `aws s3 cp`でファイルをダウンロードし、`jq '.' filename.json`で有効なJSON形式であることを確認
+    4. `jq 'keys | length' filename.json`で期待するフィールド数（5個以上）が含まれることを確認
 - [ ] **外部API連携確認**: 実際の外部サービスとの連携動作確認
   - 完了条件: 外部APIから正常にデータが取得できる
-  - 検証方法: 人による検証を依頼（外部サービスの管理画面でHTTPステータス200のAPI呼び出し履歴が記録され、レスポンスボディにデータが含まれていることを確認）
+  - 検証方法: 
+    1. 人による検証を依頼（外部サービスの管理画面でAPI呼び出し履歴を確認）
+    2. HTTPステータス200のレスポンスが記録され、レスポンスサイズが1KB以上であることを確認
+    3. レスポンスボディに期待するデータフィールド（user_id、timestamp等）が含まれていることを確認
+    4. `aws logs filter-log-events`でLambda実行ログに"SUCCESS"が含まれ、"ERROR"が含まれないことを確認
 
 ### 参考情報
 - 設計書: DESIGN.md の該当セクション
-- 実装ガイド: CLAUDE.md のTerraform開発・Python開発セクション
+- 実装ガイド: CLAUDE.md のTerraform開発・Python開発・AWS環境セクション
+- 実装ルール: CLAUDE.md の命名規則、ディレクトリ構成、基本方針に従う
 
 ### 全体完了条件
 - DESIGN.mdで定義された全機能が設計書通りに動作すること
 - 全てのテストが成功すること
+
+### 進捗管理の例
+
+タスク完了時のワークフロー：
+
+1. **検証方法の実行**: 完了条件に記載された全ての検証を実行
+2. **チェックボックスの更新**: 全て成功した場合、`- [ ]`を`- [x]`に変更
+3. **完了報告**: 「タスク完了: [タスク名]」をメッセージで報告
+
+例：
+```markdown
+- [x] **Secrets Manager作成**: API Key格納場所の作成とダミー値設定
+  - 完了条件: Secrets Managerにダミー値が格納されている
+  - 検証方法: `aws secretsmanager get-secret-value`コマンドでSecretStringが"dummy"であることを確認
+```
+
+タスク完了: Secrets Manager作成
 ```

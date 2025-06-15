@@ -25,7 +25,13 @@
       "Bash(trivy:*)",
       "WebFetch(domain:github.com)",
       "Bash(lambroll:*)",
-      "WebFetch(domain:docs.aws.amazon.com)"
+      "WebFetch(domain:docs.aws.amazon.com)",
+      "Bash(uv venv:*)",
+      "Bash(source:*)",
+      "Bash(uv sync:*)",
+      "Bash(echo $?)",
+      "Bash(zip:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   },
