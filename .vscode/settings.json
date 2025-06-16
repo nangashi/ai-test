@@ -7,5 +7,6 @@
     "**/.pytest_cache": true,
     "**/.coverage": true,
     "**/.terraform": true,
-  }
+  },
+  "markdown.styles": [".vscode/custom-markdown.css"]
 }

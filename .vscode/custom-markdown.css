@@ -1,0 +1,114 @@
+/* Markdownプレビュー用カスタムCSS - ダークモード対応見出し階層の視覚化 */
+
+/* H1: トップレベル - 柔らかい青色、太い左ボーダー */
+h1 { 
+  color: #93c5fd;
+  border-left: 6px solid #60a5fa;
+  padding-left: 12px;
+  background-color: rgba(59, 130, 246, 0.1);
+  padding: 8px 12px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
+/* H2: セクション - 柔らかい緑色、中太ボーダー */
+h2 { 
+  color: #86efac;
+  border-left: 5px solid #4ade80;
+  padding-left: 10px;
+  background-color: rgba(34, 197, 94, 0.1);
+  padding: 6px 10px;
+  margin-bottom: 16px;
+  border-radius: 4px;
+}
+
+/* H3: サブセクション - 柔らかいオレンジ色、中ボーダー */
+h3 { 
+  color: #fdba74;
+  border-left: 4px solid #fb923c;
+  padding-left: 8px;
+  margin-left: 10px;
+  background-color: rgba(249, 115, 22, 0.1);
+  padding: 4px 8px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+}
+
+/* H4: 詳細項目 - 柔らかい赤色、細ボーダー */
+h4 { 
+  color: #fca5a5;
+  border-left: 3px solid #f87171;
+  padding-left: 6px;
+  margin-left: 20px;
+  background-color: rgba(239, 68, 68, 0.1);
+  padding: 3px 6px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+}
+
+/* H5: さらに詳細 - 柔らかい紫色、最細ボーダー */
+h5 { 
+  color: #c4b5fd;
+  border-left: 2px solid #a78bfa;
+  padding-left: 4px;
+  margin-left: 30px;
+  background-color: rgba(139, 92, 246, 0.1);
+  padding: 2px 4px;
+  margin-bottom: 6px;
+  border-radius: 4px;
+}
+
+/* H6: 最下位 - 柔らかいグレー色 */
+h6 { 
+  color: #d1d5db;
+  border-left: 2px solid #9ca3af;
+  padding-left: 4px;
+  margin-left: 40px;
+  background-color: rgba(107, 114, 128, 0.1);
+  padding: 2px 4px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+}
+
+/* 目次（TOC）のスタイル改善 - ダークモード対応 */
+.table-of-contents {
+  background-color: rgba(55, 65, 81, 0.3);
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 20px 0;
+}
+
+.table-of-contents ul {
+  list-style-type: none;
+}
+
+.table-of-contents li {
+  margin: 4px 0;
+}
+
+/* コードブロックとの区別を明確化 */
+pre {
+  margin: 16px 0;
+  border-radius: 6px;
+}
+
+/* detailsタグのスタイル改善 - ダークモード対応 */
+details {
+  border: 1px solid #4b5563;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  background-color: rgba(55, 65, 81, 0.2);
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #d1d5db;
+  padding: 4px 0;
+}
+
+summary:hover {
+  color: #f3f4f6;
+}
