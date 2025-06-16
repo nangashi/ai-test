@@ -245,6 +245,7 @@ Bedrock Agentへのレスポンス：
     }
   }
 }
+```
 
 ### Slackハンドラー (slack_handler)
 
