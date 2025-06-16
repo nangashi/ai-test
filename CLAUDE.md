@@ -119,6 +119,7 @@ terraform/
 ```
 
 **ファイル分割方針:**
+
 - **アプリケーション単位**: 各Lambda関数とその依存リソース（IAM、S3、EventBridge等）を同一ファイルに配置
 - **共通リソース**: 複数アプリケーションで使用するリソース（Secrets Manager等）は独立ファイルに配置
 - **関連リソースの集約**: Lambda関数、IAMロール、ポリシー、トリガー等の関連リソースを機能別にグループ化
@@ -149,7 +150,17 @@ cd terraform
 # 4. Terraformの初期化
 terraform init      # バックエンド設定とプロバイダーのダウンロード
 
-# 5. 設定の検証
+# 5. .gitignore設定
+# Terraform必要最低限の除外設定
+cat > .gitignore << 'EOF'
+# Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+EOF
+
+# 6. 設定の検証
 terraform validate  # 構文チェック
 terraform fmt      # フォーマット適用
 ```
@@ -185,19 +196,15 @@ terraform apply     # インフラ変更の適用
 
 ### アプリケーション構造
 
-各アプリケーションはDESIGN.mdのアプリケーション一覧で定義された仕様に従って実装する：
-
 ```
 apps/<application_name>/
-├── README.md                 # アプリケーション説明
-├── DESIGN.md                 # 設計書（詳細なアーキテクチャ）
 ├── pyproject.toml           # プロジェクト設定
 ├── uv.lock                  # 依存関係ロックファイル
 ├── src/
-│   └── main.py              # エントリーポイント（DESIGN.mdの入出力仕様に準拠）
+│   └── main.py              # エントリーポイント
 ├── lambroll/                # Lambdaデプロイ設定
-│   └── function.json        # Lambda関数設定（DESIGN.mdのデプロイ先に対応）
-├── tests/                   # ユニットテスト（クラス単位）
+│   └── function.json        # Lambda関数設定
+├── tests/                   # ユニットテスト
 │   ├── conftest.py          # pytest設定・フィクスチャ
 │   ├── test_*.py           # 各srcファイルに対応
 │   └── <ディレクトリ>/       # srcディレクトリ構造と対応
@@ -235,7 +242,23 @@ uv sync                    # pyproject.tomlに基づく依存関係インスト�
 mkdir -p src tests tests-it lambroll
 touch src/main.py tests/conftest.py tests-it/conftest.py
 
-# 6. Lambdaデプロイ設定の作成（Lambdaアプリの場合）
+# 6. .gitignore設定
+# Python必要最低限の除外設定
+cat > .gitignore << 'EOF'
+# Python
+__pycache__/
+.venv/
+
+# Development tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Lambda deployment
+*.zip
+EOF
+
+# 7. Lambdaデプロイ設定の作成（Lambdaアプリの場合）
 # lambroll/function.jsonをDESIGN.mdのデプロイ先仕様に合わせて作成
 ```
 
@@ -444,6 +467,7 @@ lambroll logs --follow                  # ログをリアルタイム監視
 **パターン別の例**：
 
 **作業＋Claude Code検証パターン**：
+
 ```
 以下の手動作業をお願いします：
 
@@ -458,6 +482,7 @@ lambroll logs --follow                  # ログをリアルタイム監視
 ```
 
 **作業＋人による検証パターン**：
+
 ```
 以下の手動作業・検証をお願いします：
 
@@ -512,7 +537,7 @@ DESIGN.mdで定義されたデータ処理システム全体を実装し、設�
   - 検証方法: `aws secretsmanager get-secret-value`コマンドでSecretStringが"dummy"であることを確認
 - [ ] **API Key手動設定**: 外部サービスから取得したAPI Keyの格納
   - 完了条件: API Keyが実際の値で格納されている
-  - 検証方法: 
+  - 検証方法:
     1. 人による作業を依頼（外部サービスでAPI Key生成し、`aws secretsmanager update-secret`コマンドで更新）
     2. 完了報告後に`aws secretsmanager get-secret-value`でSecretStringが"dummy"でないことを確認
     3. SecretStringの長さが20文字以上であることを確認
@@ -535,7 +560,7 @@ DESIGN.mdで定義されたデータ処理システム全体を実装し、設�
     5. `jq '.retries' config/api-config.json` で1-5の範囲の数値が返されることを確認
 - [ ] **デプロイと動作確認**: AWS環境での動作確認
   - 完了条件: AWS環境で正常に動作する
-  - 検証方法: 
+  - 検証方法:
     1. `lambroll deploy`コマンドが終了コード0で完了することを確認
     2. `aws lambda get-function`でStateが"Active"であることを確認
     3. `aws lambda get-function`のConfiguration.RoleがIAMロールのARNと一致することを確認
@@ -544,14 +569,14 @@ DESIGN.mdで定義されたデータ処理システム全体を実装し、設�
 ### 3. 統合テスト
 - [ ] **全体フロー確認**: データ収集→変換→出力の全体フロー確認
   - 完了条件: 設計書通りの全体フローが動作する
-  - 検証方法: 
+  - 検証方法:
     1. `aws lambda invoke`でテストデータを使用した全工程実行
     2. `aws s3 ls`でS3バケットに結果ファイルが1つ以上存在することを確認
     3. `aws s3 cp`でファイルをダウンロードし、`jq '.' filename.json`で有効なJSON形式であることを確認
     4. `jq 'keys | length' filename.json`で期待するフィールド数（5個以上）が含まれることを確認
 - [ ] **外部API連携確認**: 実際の外部サービスとの連携動作確認
   - 完了条件: 外部APIから正常にデータが取得できる
-  - 検証方法: 
+  - 検証方法:
     1. 人による検証を依頼（外部サービスの管理画面でAPI呼び出し履歴を確認）
     2. HTTPステータス200のレスポンスが記録され、レスポンスサイズが1KB以上であることを確認
     3. レスポンスボディに期待するデータフィールド（user_id、timestamp等）が含まれていることを確認
@@ -582,4 +607,5 @@ DESIGN.mdで定義されたデータ処理システム全体を実装し、設�
 ```
 
 タスク完了: Secrets Manager作成
+
 ```
