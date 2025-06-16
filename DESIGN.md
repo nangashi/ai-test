@@ -33,6 +33,9 @@ graph LR
 
 ## アーキテクチャ
 
+<details>
+<summary>システム全体アーキテクチャ図</summary>
+
 ```mermaid
 graph TB
     U((User))
@@ -76,9 +79,14 @@ graph TB
     KB_TOOL -->|PAT取得| SM
 ```
 
+</details>
+
 ## 機能シーケンス
 
 ### Issue作成機能
+
+<details>
+<summary>Issue作成機能シーケンス図</summary>
 
 ```mermaid
 sequenceDiagram
@@ -92,7 +100,6 @@ sequenceDiagram
     end
 
     participant KB as Knowledge Base
-    participant SM as Secrets Manager
     participant GH as GitHub
 
     U->>S: Issue作成依頼
@@ -117,8 +124,6 @@ sequenceDiagram
     S->>SH: 承認イベントコール
     SH->>BA: Issue作成リクエスト
     BA->>IG: アクション実行
-    IG->>SM: PAT取得
-    SM->>IG: PAT返却
     IG->>GH: Issue作成
     GH->>IG: 作成完了
     IG->>BA: 作成完了応答
@@ -127,7 +132,12 @@ sequenceDiagram
     S->>U: 作成完了情報
 ```
 
+</details>
+
 ### Issueナレッジ機能
+
+<details>
+<summary>Issueナレッジ機能シーケンス図</summary>
 
 ```mermaid
 sequenceDiagram
@@ -138,13 +148,10 @@ sequenceDiagram
         participant S3 as S3
     end
 
-    participant SM as Secrets Manager
     participant GH as GitHub
     participant KB as Knowledge Base
 
     ES->>KBT: 日次トリガー
-    KBT->>SM: PAT取得
-    SM->>KBT: PAT返却
     KBT->>GH: Issue履歴
     GH->>KBT: Issue履歴データ
     KBT->>KBT: データ処理・構造化
@@ -153,6 +160,8 @@ sequenceDiagram
     S3->>KB: ナレッジ蓄積
     KB->>KBT: 蓄積完了
 ```
+
+</details>
 
 ## アプリケーション一覧
 
@@ -164,7 +173,8 @@ Bedrock Agentからのアクション呼び出しで起動し、GitHub Issueを�
 
 #### 入力
 
-Bedrock Agentからのアクション呼び出し時のJSONペイロード：
+<details>
+<summary>Bedrock Agentからの入力JSONスキーマ</summary>
 
 ```json
 // Bedrock Agentからの入力
@@ -206,14 +216,19 @@ Bedrock Agentからのアクション呼び出し時のJSONペイロード：
 }
 ```
 
+</details>
+
 #### 処理
 
 Bedrock Agentからのアクション呼び出しを受けて、Secrets ManagerからGitHub PATを取得し、GitHub API経由でIssueを作成して結果を返却します。
 
+<details>
+<summary>Issue生成ツール処理シーケンス図</summary>
+
 ```mermaid
 sequenceDiagram
     participant BA as Bedrock Agent
-    participant L2 as Lambda<br/>(Issue Creator)
+    participant L2 as Lambda<br/>(Issue生成ツール)
     participant SM as Secrets Manager
     participant GH as GitHub
 
@@ -225,9 +240,12 @@ sequenceDiagram
     L2->>BA: 作成完了応答
 ```
 
+</details>
+
 #### 出力
 
-Bedrock Agentへのレスポンス：
+<details>
+<summary>Bedrock Agentへのレスポンス</summary>
 
 ```json
 // Bedrock Agentへの出力
@@ -247,6 +265,8 @@ Bedrock Agentへのレスポンス：
 }
 ```
 
+</details>
+
 ### Slackハンドラー (slack_handler)
 
 #### 概要
@@ -255,7 +275,8 @@ Slackのapp_mentionイベントで起動し、Bedrock Agentとやり取りして
 
 #### 入力
 
-Slack Events APIからのapp_mentionイベント：
+<details>
+<summary>Slack Events APIからのapp_mentionイベント</summary>
 
 ```json
 // Slackからの入力
@@ -279,27 +300,26 @@ Slack Events APIからのapp_mentionイベント：
 }
 ```
 
+</details>
+
 #### 処理
 
 Slack Events APIからのapp_mentionイベントを受信し、SessionIDを生成してBedrock Agentとやり取りを行い、応答をSlackに転送します。
+
+<details>
+<summary>Slackハンドラー処理シーケンス図</summary>
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant S as Slack
-    participant L1 as Lambda<br/>(AI Interface)
+    participant L1 as Lambda<br/>(Slackハンドラー)
     participant BA as Bedrock Agent
-    participant KB as Bedrock Knowledge Base
-    participant L2 as Lambda<br/>(Issue Creator)
-    participant SM as Secrets Manager
-    participant GH as GitHub
 
     U->>S: メンション/依頼
     S->>L1: イベント送信 (Function URL)
     Note over L1: SessionID生成
     L1->>BA: クエリ送信 (sessionId)
-    BA->>KB: ナレッジ検索
-    KB->>BA: 関連データ
     BA->>L1: Issue内容生成
     L1->>S: プレビュー送信
     S->>U: プレビュー表示
@@ -317,18 +337,17 @@ sequenceDiagram
     U->>S: 最終承認
     S->>L1: 承認イベント
     L1->>BA: Issue作成リクエスト (same sessionId)
-    BA->>L2: アクション実行 (issue data)
-    L2->>SM: PAT取得要求
-    SM->>L2: PAT返却
-    L2->>GH: Issue作成
-    GH->>L2: Issue作成完了 (URL付き)
-    L2->>BA: 作成完了応答
-    BA->>L1: 応答
-    L1->>S: 成功通知 (URL付き)
-    S->>U: 作成完了情報 (URL付き)
+    BA->>L1: 作成完了応答
+    L1->>S: 成功通知 (Issue URL付き)
+    S->>U: 作成完了情報 (Issue URL付き)
 ```
 
+</details>
+
 #### 出力
+
+<details>
+<summary>Slackへの応答とメッセージ投稿</summary>
 
 Slackへの応答（HTTP 200 OK）：
 
@@ -354,6 +373,8 @@ Slack APIへのメッセージ投稿：
 }
 ```
 
+</details>
+
 ### ナレッジ構築ツール (knowledge_builder)
 
 #### 概要
@@ -362,7 +383,8 @@ EventBridge Schedulerの日次スケジュールで起動し、GitHub Issue履�
 
 #### 入力
 
-EventBridge Schedulerからの定期実行時の入力：
+<details>
+<summary>EventBridge Schedulerからの定期実行入力</summary>
 
 ```json
 // EventBridgeからの入力
@@ -381,14 +403,19 @@ EventBridge Schedulerからの定期実行時の入力：
 }
 ```
 
+</details>
+
 #### 処理
 
 EventBridge Schedulerからの日次実行により、前日クローズのIssue履歴をGitHub APIから取得し、Frontmatter Markdown形式でS3に保存してKnowledge Baseを更新します。
 
+<details>
+<summary>ナレッジ構築ツール処理シーケンス図</summary>
+
 ```mermaid
 sequenceDiagram
     participant ES as EventBridge Scheduler
-    participant L3 as Lambda<br/>(Issue Extractor)
+    participant L3 as Lambda<br/>(ナレッジ構築ツール)
     participant SM as Secrets Manager
     participant GH as GitHub
     participant S3 as S3<br/>(Issue History)
@@ -405,9 +432,12 @@ sequenceDiagram
     KB->>L3: 同期完了
 ```
 
+</details>
+
 #### 出力
 
-Lambda実行結果：
+<details>
+<summary>Lambda実行結果</summary>
 
 ```json
 // 実行結果
@@ -424,6 +454,8 @@ Lambda実行結果：
   }
 }
 ```
+
+</details>
 
 #### 保存データ形式
 
