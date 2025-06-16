@@ -163,7 +163,7 @@ sequenceDiagram
 
 </details>
 
-## アプリケーション一覧
+## アプリケーション設計
 
 ### Issue生成ツール (issue_generator)
 
