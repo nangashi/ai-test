@@ -27,7 +27,7 @@ graph LR
     U((User)) -->|Issue作成依頼| IC[Issue作成機能]
     IC -->|Issue作成| GH[GitHub]
 
-    GH -->|Issue履歴取得| INF[Issueナレッジ機能]
+    GH -->|Issue履歴| INF[Issueナレッジ機能]
     INF -->|ナレッジ蓄積| IC
 ```
 
@@ -66,7 +66,7 @@ graph TB
     S -->|Issue提案| U
 
     ES -->|日次トリガー| KB_TOOL
-    KB_TOOL -->|Issue履歴取得| GH
+    KB_TOOL -->|Issue履歴| GH
     KB_TOOL -->|データ保存| S3
 
     BA <-->|Issue履歴参照| KB
@@ -145,7 +145,7 @@ sequenceDiagram
     ES->>KBT: 日次トリガー
     KBT->>SM: PAT取得
     SM->>KBT: PAT返却
-    KBT->>GH: Issue履歴取得
+    KBT->>GH: Issue履歴
     GH->>KBT: Issue履歴データ
     KBT->>KBT: データ処理・構造化
     KBT->>S3: データ保存
@@ -396,7 +396,7 @@ sequenceDiagram
     ES->>L3: 日次トリガー
     L3->>SM: PAT取得要求
     SM->>L3: PAT返却
-    L3->>GH: Issue履歴取得
+    L3->>GH: Issue履歴
     GH->>L3: Issue履歴データ
     L3->>S3: データ保存
     S3->>L3: 保存完了
