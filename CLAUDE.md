@@ -4,15 +4,36 @@
 
 ## 基本方針
 
+### レビュー方針
+
+基本方針に沿ってレビューを行うときは、各方針にある見出し単位でレビュータスクを分割し、指摘に対する具体的な改善提案を提示する
+
 ### ドキュメント方針
 
-すべてのドキュメントは以下の品質基準を満たすこと
+#### 文書の役割分担
 
-- **一貫性**: 文書内で矛盾のない統一された記載
-- **明確性**: 実装やアーキテクチャのブレが生じない明確な記述
-- **構造化**: 人が理解しやすい論理的な見出し構成
-- **簡潔性**: 重複のない必要最小限の記載
-- **文字エンコーディング**: 日本語UTF-8で作成
+- ひとつの文書では一つのトピック（AWS環境、Python開発、Terraform開発など）のみを扱い、複数トピックの場合は独立した文書に分割する
+- トピックと一致しない事項は読者が関連情報の存在を知れる程度に記載し、詳細は該当する文書を参照する
+- メイントピックの実行・検証に必要なツール（AWS CLI、Git、テストコマンド等）は同一文書内で用いてもよい
+
+#### 見出しの構成
+
+- 見出しの構成と順番について「なぜこの順序なのか」を説明できる構成とする
+- 実装前・実装中・実装後に参照する情報でまとめるなど、参照タイミングおよび参照順番を考慮した見出し分けにする
+- 似た種類の情報をグループ化して階層的にまとめる（命名規則、設定ファイルの使い分けなど）
+
+#### 記述方式
+
+- 運用ルールや設計方針など事前決定しないと作業のブレが生じる内容のみ記載し、エラー対応など調査で解決できる内容は記載しない
+- 抽象的な記述を避け、コードや文書の実装時にClaude Codeが具体的なアクションに落とし込めるような記載とする
+- 同一内容への言及が複数箇所に散らばることを避け、一箇所にまとめて他は参照で済ませる
+- 文字エンコーディングは日本語UTF-8で作成する
+
+#### 技術的整合性
+
+- ツール・技術の公式名称を使用する
+- 文書内で設定値や命名規則を統一する
+- バージョン情報の一貫性を保つ
 
 ### 実装方針
 
@@ -64,343 +85,56 @@ Ctrl+Shift+P → "Dev Containers: Reopen Locally"         # ローカルで開�
 
 ## AWS環境
 
-### 基本方針
+AWS環境の詳細な設定・開発ガイドは専用ページを参照してください：
 
-- **Terraformで構築する**: AWSリソースの作成・管理はTerraformを使用してInfrastructure as Codeで実施
-- **Lambdaはlambrollでデプロイする**: Lambda関数のデプロイ・管理はlambrollを使用して実施
-- **Secrets Managerはデフォルトでdummyという文字列を格納し、手動で値を書き換える**: セキュリティ上、初期値はプレースホルダーとして設定
-- **開発コンテナ内では認証設定済み**: 開発コンテナ内ではAWS認証が構成済みのため、AWS CLIやTerraformの認証設定は不要
+**[AWS環境ガイド](docs/development/aws.md)**
 
-### 命名規則
+### 主な内容
 
-#### リソース命名パターン
-
-**組み合わせリソース**: 他のリソースと組み合わせて使用するもの
-
-- 形式: `{env}-{リソース名}-{役割}`
-- 対象: VPC、IAM Role/Policy、セキュリティグループ、サブネット等
-- 例: `dev-vpc-main`、`dev-role-lambda_execution`、`dev-policy-lambda_execution`、`dev-sg-web_server`
-
-**単独リソース**: 単独で動作するもの
-
-- 形式: `{env}-{役割}`
-- 対象: ECS、Lambda、RDS、S3バケット等
-- 例: `dev-api_server`、`dev-batch_processor`
-- ただしS3はハイフンしか利用できないためすべてハイフン区切りとする
-
-#### 命名規則詳細
-
-- **環境**: `dev`、`stg`、`prd`
-- **役割の複数単語**: アンダースコア区切り（例: `web_server`、`data_processor`）
-- **英小文字**: 全て小文字で統一
-- **略語**: 一般的な略語を使用（`sg` = Security Group、`rds` = RDS等）
-
-### 設計指針
-
-**AWS Well-Architectedフレームワーク**に従って設計・実装を行う。特にセキュリティは重要なため以下を遵守：
-
-- **最小権限の原則**: IAMロールは必要最小限の権限のみ付与
-- **シークレット管理**: Secrets Managerを使用してAPI Token・パスワード等を管理
-- **暗号化**: S3ステートファイル、Knowledge Base等の保存時暗号化を有効化
-- **VPC内配置**: Lambda関数は可能な限りVPC内に配置してネットワーク分離
+- 基本方針（Terraform構築、lambrollデプロイ、Secrets Manager運用）
+- 命名規則（組み合わせリソース・単独リソースのパターン）
+- 設計指針（AWS Well-Architectedフレームワーク準拠）
 
 ## Terraform開発
 
-### ディレクトリ構成
+Terraformの詳細な開発ガイドは専用ページを参照してください：
 
-```
-terraform/
-├── main.tf              # Providerの設定とバージョン制約
-├── backend.tf           # S3バックエンド設定（ネイティブステートロック）
-├── secrets.tf           # Secrets Manager（共通シークレット管理）
-├── web_api.tf           # Web API Lambda + IAM + Function URL
-├── batch_processor.tf   # バッチ処理 Lambda + IAM + S3 + EventBridge
-└── notification_service.tf  # 通知サービス Lambda + IAM + 外部サービス連携
-```
+**[Terraform開発ガイド](docs/development/terraform.md)**
 
-**ファイル分割方針:**
+### 主な内容
 
-- **アプリケーション単位**: 各Lambda関数とその依存リソース（IAM、S3、EventBridge等）を同一ファイルに配置
-- **共通リソース**: 複数アプリケーションで使用するリソース（Secrets Manager等）は独立ファイルに配置
-- **関連リソースの集約**: Lambda関数、IAMロール、ポリシー、トリガー等の関連リソースを機能別にグループ化
-- **命名規則**: `{機能名}.tf` でファイル名を決定し、内部リソースは `{env}-{機能名}-{リソース種別}` で命名
-
-### 初期構築
-
-新しいTerraformプロジェクトを作成する際の初期セットアップ手順：
-
-```bash
-# 1. Terraformディレクトリの作成
-mkdir -p terraform
-cd terraform
-
-# 2. main.tfの作成
-# 以下を含むmain.tfを作成：
-# - terraform {} ブロック（required_version）
-# - required_providers {} ブロック（aws provider v5.0+）
-# - provider "aws" {} ブロック（リージョン設定）
-
-# 3. backend.tfの作成
-# S3バックエンド設定を含むbackend.tfを作成：
-# - backend "s3" {} ブロック
-# - バケット: 384081048358-tfstate-2
-# - リージョン: ap-northeast-1
-# - use_lockfile = true（ネイティブステートロック）
-
-# 4. Terraformの初期化
-terraform init      # バックエンド設定とプロバイダーのダウンロード
-
-# 5. .gitignore設定
-# Terraform必要最低限の除外設定
-cat > .gitignore << 'EOF'
-# Terraform
-.terraform/
-terraform.tfstate
-terraform.tfstate.backup
-*.tfvars
-EOF
-
-# 6. 設定の検証
-terraform validate  # 構文チェック
-terraform fmt      # フォーマット適用
-```
-
-この初期構築完了後、DESIGN.mdのシステム概要図に従ってAWSリソースの定義を開始する。
-
-### コマンド
-
-```bash
-cd terraform
-terraform init      # Terraformの初期化
-terraform plan      # インフラ変更の計画
-terraform apply     # インフラ変更の適用
-```
-
-### 開発ガイドライン
-
-- **MCPサーバーの活用**: 実装前に必ずMCP（Model Context Protocol）サーバーを使用してTerraformの最新仕様と推奨実装を確認する
-- **フォーマット**: 実装後に`terraform fmt`を実行してtf/hclファイルを整形する
-- **バリデーション**: 実装後に`terraform validate`を実行して構文チェックを行う
-- **コード品質**: 実装後に`tflint`を実行して問題を特定・解決する
-- **セキュリティチェック**: 実装後に`trivy config .`を実行してセキュリティ脆弱性をスキャンする
-- **バージョン**: Terraform v1.12.2とAWS Provider v5.0+
-
-### バックエンド設定
-
-- **ステート保存**: S3バケット`384081048358-tfstate-2`
-- **ステートロック**: S3ネイティブロック（DynamoDB不要）
-- **暗号化**: ステートファイルの暗号化を有効
-- **リージョン**: ap-northeast-1
+- ディレクトリ構成とファイル分割方針
+- 初期構築手順（main.tf、backend.tf設定）
+- 開発ガイドライン（MCPサーバー活用、品質チェック）
+- バックエンド設定（S3ステート管理、ネイティブロック）
 
 ## Python開発
 
-### アプリケーション構造
+Pythonアプリケーションの詳細な開発ガイドは専用ページを参照してください：
 
-```
-apps/<application_name>/
-├── pyproject.toml           # プロジェクト設定
-├── uv.lock                  # 依存関係ロックファイル
-├── src/
-│   └── main.py              # エントリーポイント
-├── lambroll/                # Lambdaデプロイ設定
-│   └── function.json        # Lambda関数設定
-├── tests/                   # ユニットテスト
-│   ├── conftest.py          # pytest設定・フィクスチャ
-│   ├── test_*.py           # 各srcファイルに対応
-│   └── <ディレクトリ>/       # srcディレクトリ構造と対応
-│       └── test_*.py
-└── tests-it/               # 結合テスト（シナリオ単位）
-    ├── conftest.py          # 結合テスト用設定
-    └── test_*_scenario.py   # 業務シナリオのテスト
-```
+**[Python開発ガイド](docs/development/python.md)**
 
-### 初期構築
+### 主な内容
 
-新しいPythonアプリケーションを作成する際の初期セットアップ手順：
-
-```bash
-# 1. アプリケーションディレクトリの作成
-mkdir -p apps/<application_name>
-cd apps/<application_name>
-
-# 2. pyproject.tomlの配置
-# DESIGN.mdの仕様に基づいて以下を含むpyproject.tomlを作成：
-# - プロジェクト名・説明・バージョン
-# - Python要求バージョン
-# - 本番依存関係（boto3、injector等）
-# - 開発依存関係（pytest、ruff、mypy等）
-# - pytestの設定（pythonpath = ["src"]）
-
-# 3. 仮想環境の作成と有効化
-uv venv                    # 仮想環境作成
-source .venv/bin/activate  # 仮想環境有効化（以降の作業はこの環境で実施）
-
-# 4. 依存関係のインストール
-uv sync                    # pyproject.tomlに基づく依存関係インストール
-
-# 5. ディレクトリ構造の作成
-mkdir -p src tests tests-it lambroll
-touch src/main.py tests/conftest.py tests-it/conftest.py
-
-# 6. .gitignore設定
-# Python必要最低限の除外設定
-cat > .gitignore << 'EOF'
-# Python
-__pycache__/
-.venv/
-
-# Development tools
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Lambda deployment
-*.zip
-EOF
-
-# 7. Lambdaデプロイ設定の作成（Lambdaアプリの場合）
-# lambroll/function.jsonをDESIGN.mdのデプロイ先仕様に合わせて作成
-```
-
-この初期構築完了後、DESIGN.mdの入出力仕様に従ってsrc/main.pyの実装を開始する。
-
-### 実装指針
-
-- **入出力仕様**: DESIGN.mdのアプリケーション一覧の入力・出力セクションに準拠
-- **デプロイ設定**: DESIGN.mdのデプロイ先情報をlambroll/function.jsonに反映
-- **テスト設計**: DESIGN.mdの処理フローを基に結合テストシナリオを作成
-
-### 環境セットアップ
-
-```bash
-cd apps/<アプリ名>
-uv venv                    # 仮想環境作成
-source .venv/bin/activate  # 仮想環境有効化
-uv sync                    # 依存関係インストール
-```
-
-### コマンド
-
-```bash
-# コード品質
-uv run ruff format         # コード自動フォーマット
-uv run ruff check          # リント実行
-uv run ruff check --fix    # リント自動修正
-uv run mypy src           # 型チェック
-
-# テスト
-uv run pytest            # ユニットテスト実行
-uv run pytest -v         # 詳細出力
-uv run pytest --cov=src  # カバレッジ付き実行
-uv run pytest tests-it/  # 結合テスト実行
-
-# 依存関係管理
-uv add <パッケージ名>      # 本番依存関係追加
-uv add --dev <パッケージ名> # 開発依存関係追加
-uv remove <パッケージ名>   # パッケージ削除
-
-```
-
-### 技術スタック
-
-Python開発の標準ツール：
-
-- **uv**: パッケージ管理
-- **ruff**: フォーマット・リント
-- **mypy**: 型チェック
-- **pytest**: テスト
-- **lambroll**: Lambdaデプロイ
-
-### 実装ガイドライン
-
-#### コード構成・可読性
-
-- **1ファイル1クラス**: ファイルごとに一つのクラスを定義し、責務を明確化
-- **クラス責務の明示**: ファイルの先頭にクラスの責務をコメントで記載
-- **単一責任の原則**: 同じクラスに複数の責務がある場合はクラスを分割
-- **メソッドの説明**: 各メソッドには処理内容を説明する日本語の一行コメントを付与
-- **処理目的の明示**: 複雑あるいは直感的に理解しにくい処理では目的や背景をコメントで記載
-
-#### コード品質・保守性
-
-- **型ヒント必須**: Python型ヒントを付与して型安全性を確保
-- **ruffフォーマット**: `uv run ruff format`による自動フォーマット適用
-- **ruffリント**: `uv run ruff check`によるリント実行
-- **型チェック**: `uv run mypy src`による静的型チェック実行
-
-### テスト方針
-
-#### テスト実装方針
-
-- **1テストメソッド1アサーション**: 単一の観点のみをテストし、失敗原因を明確化
-- **Given-When-Then構造**: テストケースを3段階で構造化（準備・実行・検証）
-- **テスト名**: `test_<対象メソッド名>_<前提条件>_<期待結果>`形式で命名
-- **日本語コメント**: テストの意図・背景を明記
-- **フィクスチャ活用**: pytest.fixtureでテストデータ・モックオブジェクトを共通化
-
-### デプロイ（Lambda関数）
-
-#### lambrollを使用したデプロイ
-
-**設定ファイル**: `function.json`でLambda関数の設定を管理
-
-#### デプロイワークフロー
-
-1. **コード品質チェック**: ruff format/check、mypy実行
-2. **テスト実行**: pytestでユニット・結合テスト
-3. **デプロイパッケージ作成**: Lambda用zipパッケージの生成
-   - `uv export --no-dev --format requirements-txt > requirements.txt`
-   - `mkdir lambda_package`
-   - `pip install -r requirements.txt --target lambda_package --quiet`
-   - `cp src/*.py lambda_package/`
-   - `cd lambda_package && zip -r ../deployment.zip . -x "*.pyc" "*/__pycache__/*"`
-4. **デプロイ準備**: lambroll deploy --dry-runで確認
-5. **デプロイ実行**: lambroll deploy --src deployment.zipで本番反映
-6. **動作確認**: lambroll logsでログ確認
-
-#### lambrollコマンド
-
-```bash
-# デプロイ
-lambroll deploy --src deployment.zip    # zipファイル指定でデプロイ
-lambroll deploy --dry-run               # デプロイ内容の確認
-
-# 管理
-lambroll rollback                       # 前のバージョンにロールバック
-lambroll delete                         # Lambda関数を削除
-lambroll delete --dry-run               # 削除内容の確認
-
-# 監視
-lambroll logs                           # 最新のログを表示
-lambroll logs --follow                  # ログをリアルタイム監視
-```
+- アプリケーション構造とディレクトリ構成
+- 初期構築手順（uv、pytest、lambroll環境）
+- 実装ガイドライン（コード品質、テスト方針）
+- デプロイワークフロー（lambrollを使用したLambda関数デプロイ）
+- 技術スタック（uv、ruff、mypy、pytest、lambroll）
 
 ## 作業指示
 
-**INSTRUCTIONS.md**での作業指示記載方法：
+作業指示書（INSTRUCTIONS.md）の詳細な作成ガイドは専用ページを参照してください：
 
-### 書き方
+**[作業指示書作成ガイド](docs/guides/instructions.md)**
 
-#### 開発ゴール
+### 主な内容
 
-開発対象がどのようなシステムであるかを述べ、システムの設計がDESIGN.mdに定義されていることを伝える
-
-#### 機能一覧
-
-実装の網羅性を確保するために、DESIGN.mdで定義されたアプリケーションを基準として実装単位を定義する
-
-各機能はapps/ディレクトリのアプリケーション名と対応し、DESIGN.mdのアプリケーション一覧で詳細仕様を参照する
-
-#### 開発の流れ
-
-一覧で示した機能の開発や、テストなどの検証タスクなど、開発をどのように進めるかを具体的に理由付きで説明する
-
-例：
-
-1. 認証機能の開発：API Key・トークン管理は各機能で利用するためここで実施する
-2. データ収集機能：外部APIとの連携のみで他機能への依存がないためここで実施する
-3. データ変換機能：データ収集機能で取得したデータを変換するため、データ収集機能の開発後に実施する
-4. 開発ゴール検証：全機能の開発後に実施する
+- 書き方（開発ゴール、機能一覧、開発の流れ、タスク）
+- タスク分割・順序の指針
+- 完了条件・検証方法の定義
+- 人による作業依頼のワークフロー
+- 具体例とベストプラクティス
 
 #### タスク
 
@@ -427,185 +161,4 @@ lambroll logs --follow                  # ログをリアルタイム監視
 - **機密情報**: 機密情報を先に格納してからそれを利用するサービスを構築
 - **前提条件の準備**: 複雑なサービスは前提条件（ダミーデータ、設定ファイル等）を先に準備してから本体を構築
 
-##### 完了条件の定義
-
-**完了時の状態の具体化**：
-
-- **技術的状態**: 「デプロイされている」「権限が設定されている」「テストが成功している」等の客観的な状態
-- **数値基準**: カバレッジ90%以上、HTTPステータス200等の具体的な判定基準
-- **設定値確認**: DESIGN.mdの仕様との一致、必要な権限の付与等
-
-**検証方法の記載ルール**：
-
-- **Claude Codeから実行可能**: CLIコマンド・API呼び出しのみ記載（Claude CodeはWebコンソールにアクセスできないため）
-- **具体的コマンド**: `terraform apply`、`uv run pytest`、`curl [URL]`等の実際に実行するコマンドを明記
-- **判定基準の明確化**: コマンド実行結果の具体的な成功/失敗判定基準を明示
-  - **期待値**: HTTPステータス200、特定の設定値、レスポンスフィールドの存在等の具体的な値
-  - **判定方法**: どのフィールド・プロパティで成功を判断するか（例：Status="ACTIVE"、Count > 0、Value != "dummy"等）
-  - **数値条件**: 範囲、閾値、カウント等の具体的な数値基準（例：30以上、1-5の範囲等）
-  - **文字列条件**: 完全一致、パターンマッチ、含有等の文字列判定基準（例：HTTPSで始まる、"FAILED"が含まれない等）
-- **段階的検証**: 複雑なタスク（設定ファイル作成、スキーマ定義等）では検証を段階的に記載
-  - 箇条書き形式で順序立てて検証手順を明記
-  - 各段階で確認する具体的な値・状態・プロパティと期待値を明記
-  - DESIGN.mdの設定詳細セクション等の参照すべき仕様を明示
-  - 成功時の期待値と判定条件を明記
-- **人による作業依頼**: Claude Codeでは実行不可能な作業（外部トークン生成、手動設定、UI確認等）は人に作業・検証を依頼し、完了報告後にClaude Codeが可能な範囲で結果を検証することを明記
-- **進捗管理**: タスク完了時にMarkdownチェックボックスを更新し、進捗を可視化
-  - 各タスクは`- [ ]`形式のチェックボックスで記載
-  - タスク完了後は検証方法を実行し、全て成功した場合に`- [x]`へ更新
-  - 進捗状況を明確にするため、完了時には「タスク完了: [タスク名]」をメッセージで報告
-
-#### 人による作業依頼のワークフロー
-
-**人による作業が必要な場合の標準的な流れ**：
-
-1. **Claude Codeによる依頼**: 明確な作業内容・検証手順をメッセージで提示
-2. **人による作業・検証実行**: 外部サービスでの設定、トークン生成、動作確認等
-3. **人による完了報告**: 作業・検証完了をClaude Codeに報告
-4. **Claude Codeによる補完確認**: 可能な範囲でAWS CLIやAPIで結果を確認
-
-**パターン別の例**：
-
-**作業＋Claude Code検証パターン**：
-
-```
-以下の手動作業をお願いします：
-
-1. GitHubでPersonal Access Tokenを生成
-   - Settings > Developer settings > Personal access tokens
-   - スコープ: repo, issues
-2. 生成されたトークンを以下のコマンドで設定
-   - aws secretsmanager update-secret --secret-id dev-github-pat --secret-string "ghp_xxxxxxxxxxxx"
-3. 完了したら「GitHub PAT設定完了」とお知らせください
-
-完了報告後、Claude CodeがAWS CLIでトークン設定を確認します。
-```
-
-**作業＋人による検証パターン**：
-
-```
-以下の手動作業・検証をお願いします：
-
-1. SlackワークスペースでBotにメンション送信
-2. GitHubリポジトリに新しいIssueが作成されることを確認
-3. 動作確認完了したら「Slack連携動作確認完了」とお知らせください
-
-Claude Codeでは外部サービス間の連携確認ができないため、人による検証をお願いします。
-```
-
-#### 補足情報の定義
-
-**参考情報**：
-
-- **設計書参照**: DESIGN.mdの該当セクションを明記
-- **実装ガイド参照**: CLAUDE.mdの技術セクション（Terraform開発、Python開発、AWS環境等）を明記
-- **実装ルール**: CLAUDE.mdの命名規則、ディレクトリ構成、開発方針に従うことを明記
-- **特記事項**: 実装時の注意点・制約事項を明記
-
-**全体完了条件**：
-
-- **機能完全性**: DESIGN.mdで定義された全機能の動作確認
-- **フロー完全性**: エンドツーエンドの全体フローの成功確認
-- **品質確保**: 全テストの成功とAWS環境での安定動作
-
-### 具体例
-
-```markdown
-# 作業指示
-
-## データ処理システムの実装
-
-## 開発ゴール
-DESIGN.mdで定義されたデータ処理システム全体を実装し、設計書通りの完全なシステムを構築する
-
-### 機能一覧
-- **データ収集アプリケーション (data_collector)**: 外部APIからのデータ取得
-- **データ変換アプリケーション (data_transformer)**: データ形式変換・クレンジング
-- **レポート生成アプリケーション (report_generator)**: 集計結果の出力
-
-## 開発の流れ
-1. **認証・権限基盤の構築**: API Key管理など各アプリケーションで利用する基盤のため最初に実施
-2. **データ収集アプリケーション**: 外部APIとの連携のみで他アプリケーションへの依存がないためここで実施
-3. **データ変換アプリケーション**: データ収集アプリケーションで取得したデータを変換するため、データ収集の完了後に実施
-4. **統合テスト**: 全アプリケーション完了後に全体フローを検証
-
-## タスク
-
-### 1. 基盤構築
-- [ ] **Secrets Manager作成**: API Key格納場所の作成とダミー値設定
-  - 完了条件: Secrets Managerにダミー値が格納されている
-  - 検証方法: `aws secretsmanager get-secret-value`コマンドでSecretStringが"dummy"であることを確認
-- [ ] **API Key手動設定**: 外部サービスから取得したAPI Keyの格納
-  - 完了条件: API Keyが実際の値で格納されている
-  - 検証方法:
-    1. 人による作業を依頼（外部サービスでAPI Key生成し、`aws secretsmanager update-secret`コマンドで更新）
-    2. 完了報告後に`aws secretsmanager get-secret-value`でSecretStringが"dummy"でないことを確認
-    3. SecretStringの長さが20文字以上であることを確認
-    4. 外部APIエンドポイントへのHTTP GETリクエストでHTTPステータス200が返されることを確認
-- [ ] **IAMロール・ポリシー作成**: Lambda実行に必要な権限設定
-  - 完了条件: 必要な権限が設定されている
-  - 検証方法: `aws iam list-attached-role-policies`でポリシーが1つ以上アタッチされ、`aws iam get-policy-version`でAction配列に"secretsmanager:GetSecretValue"が含まれることを確認
-
-### 2. データ収集アプリケーション
-- [ ] **ローカル実装**: 外部API連携機能の実装・テスト
-  - 完了条件: ユニットテストが全て成功する
-  - 検証方法: `uv run pytest --cov=src` でテスト実行し、出力に"FAILED"が含まれず、全テストが"PASSED"と表示され、カバレッジが90%以上であることを確認
-- [ ] **設定ファイル作成**: 外部API連携用の設定定義
-  - 完了条件: 設定ファイルがDESIGN.md仕様に準拠して作成されている
-  - 検証方法:
-    1. 指定パス（`config/api-config.json`）にファイルが存在することを確認
-    2. `jq '.' config/api-config.json` でパースエラーが発生しないことを確認
-    3. `jq '.endpoint' config/api-config.json` で"https://"で始まるURL文字列が返されることを確認
-    4. `jq '.timeout' config/api-config.json` で30以上の数値が返されることを確認
-    5. `jq '.retries' config/api-config.json` で1-5の範囲の数値が返されることを確認
-- [ ] **デプロイと動作確認**: AWS環境での動作確認
-  - 完了条件: AWS環境で正常に動作する
-  - 検証方法:
-    1. `lambroll deploy`コマンドが終了コード0で完了することを確認
-    2. `aws lambda get-function`でStateが"Active"であることを確認
-    3. `aws lambda get-function`のConfiguration.RoleがIAMロールのARNと一致することを確認
-    4. `aws logs filter-log-events`でエラーログが存在しないことを確認
-
-### 3. 統合テスト
-- [ ] **全体フロー確認**: データ収集→変換→出力の全体フロー確認
-  - 完了条件: 設計書通りの全体フローが動作する
-  - 検証方法:
-    1. `aws lambda invoke`でテストデータを使用した全工程実行
-    2. `aws s3 ls`でS3バケットに結果ファイルが1つ以上存在することを確認
-    3. `aws s3 cp`でファイルをダウンロードし、`jq '.' filename.json`で有効なJSON形式であることを確認
-    4. `jq 'keys | length' filename.json`で期待するフィールド数（5個以上）が含まれることを確認
-- [ ] **外部API連携確認**: 実際の外部サービスとの連携動作確認
-  - 完了条件: 外部APIから正常にデータが取得できる
-  - 検証方法:
-    1. 人による検証を依頼（外部サービスの管理画面でAPI呼び出し履歴を確認）
-    2. HTTPステータス200のレスポンスが記録され、レスポンスサイズが1KB以上であることを確認
-    3. レスポンスボディに期待するデータフィールド（user_id、timestamp等）が含まれていることを確認
-    4. `aws logs filter-log-events`でLambda実行ログに"SUCCESS"が含まれ、"ERROR"が含まれないことを確認
-
-### 参考情報
-- 設計書: DESIGN.md の該当セクション
-- 実装ガイド: CLAUDE.md のTerraform開発・Python開発・AWS環境セクション
-- 実装ルール: CLAUDE.md の命名規則、ディレクトリ構成、基本方針に従う
-
-### 全体完了条件
-- DESIGN.mdで定義された全機能が設計書通りに動作すること
-- 全てのテストが成功すること
-
-### 進捗管理の例
-
-タスク完了時のワークフロー：
-
-1. **検証方法の実行**: 完了条件に記載された全ての検証を実行
-2. **チェックボックスの更新**: 全て成功した場合、`- [ ]`を`- [x]`に変更
-3. **完了報告**: 「タスク完了: [タスク名]」をメッセージで報告
-
-例：
-```markdown
-- [x] **Secrets Manager作成**: API Key格納場所の作成とダミー値設定
-  - 完了条件: Secrets Managerにダミー値が格納されている
-  - 検証方法: `aws secretsmanager get-secret-value`コマンドでSecretStringが"dummy"であることを確認
-```
-
-タスク完了: Secrets Manager作成
-
-```
+**作業指示の詳細**: [作業指示書作成ガイド](docs/guides/instructions.md)

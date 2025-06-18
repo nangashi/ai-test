@@ -31,7 +31,8 @@
       "Bash(uv sync:*)",
       "Bash(echo $?)",
       "Bash(zip:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(echo:*)"
     ],
     "deny": []
   },
