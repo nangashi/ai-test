@@ -125,7 +125,9 @@ terraform validate  # 構文チェック
 terraform fmt      # フォーマット適用
 ```
 
-### 基本コマンド
+## 開発ガイドライン
+
+### 開発コマンド
 
 ```bash
 # 作業ディレクトリに移動
@@ -167,8 +169,6 @@ trivy config .     # セキュリティチェック
 4. **計画確認と適用**: `terraform plan` → `terraform apply`
 5. **ドキュメント生成**: `terraform-docs`でREADME.md自動生成
 6. **動作確認**: aws cliコマンドでリソース状態確認、アプリケーション動作テスト
-
-## 開発ガイドライン
 
 ### ファイル構成と分割方針
 
@@ -534,6 +534,10 @@ resource "aws_subnet" "private" {
 }
 ```
 
+**実装前確認**:
+
+- **MCPサーバー活用**: 実装前にTerraform・AWSプロバイダーの最新仕様を確認
+
 ### 機密情報の取り扱い
 
 ```hcl
@@ -579,16 +583,6 @@ variable "github_token" {
 ## 品質管理
 
 ### コード品質チェック
-
-詳細オプション：
-
-```bash
-# 再帰的フォーマット
-terraform fmt -recursive
-
-# 詳細な実行計画検証
-terraform plan -detailed-exitcode
-```
 
 **TFLint設定（.tflint.hcl）**:
 
@@ -659,8 +653,6 @@ trivy config --severity HIGH,CRITICAL .
 - 開発開始時点の最新安定版で完全固定（プロジェクト初期設定で環境変数として定義）
 - バージョン変更による予期しない動作変更を防ぎ、開発環境の一貫性を保つ
 
-**実装前確認**: MCPサーバーでTerraform・AWSプロバイダーの最新仕様を確認
-
 **アップデート方針**:
 
 - **パッチバージョン**: セキュリティ修正等の重要な場合のみ検証後に更新
@@ -691,7 +683,3 @@ trivy config --severity HIGH,CRITICAL .
 - 複数人での同時実行を避ける（S3ロックファイルで制御）
 - `terraform apply`実行前は必ず`terraform plan`で変更確認
 
-## 参考情報
-
-- **AWS環境**: [AWS環境ガイド](aws.md)
-- **設計書**: [DESIGN.md](../../DESIGN.md)
